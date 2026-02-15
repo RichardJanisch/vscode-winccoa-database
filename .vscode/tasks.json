@@ -1,0 +1,87 @@
+// See https://go.microsoft.com/fwlink/?LinkId=733558
+// for the documentation about the tasks.json format
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "install:template",
+			"type": "shell",
+			"command": "npm install",
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "build:template",
+			"type": "shell",
+			"command": "npm run compile",
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "dev:template-only",
+			"dependsOrder": "sequence",
+			"dependsOn": [
+				"install:template",
+				"build:template"
+			],
+			"problemMatcher": []
+		},
+		{
+			"label": "install:core",
+			"type": "shell",
+			"command": "npm install",
+			"options": {
+				"cwd": "${workspaceFolder}/../npm-winccoa-core"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "build:core",
+			"type": "shell",
+			"command": "npm run build",
+			"options": {
+				"cwd": "${workspaceFolder}/../npm-winccoa-core"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "install:project-admin",
+			"type": "shell",
+			"command": "npm install",
+			"options": {
+				"cwd": "${workspaceFolder}/../vscode-winccoa-project-admin"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "build:project-admin",
+			"type": "shell",
+			"command": "npm run compile",
+			"options": {
+				"cwd": "${workspaceFolder}/../vscode-winccoa-project-admin"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "dev:template+project-admin",
+			"dependsOrder": "sequence",
+			"dependsOn": [
+				"install:core",
+				"build:core",
+				"install:project-admin",
+				"build:project-admin",
+				"install:template",
+				"build:template"
+			],
+			"problemMatcher": [],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		}
+	]
+}
