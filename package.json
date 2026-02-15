@@ -1,12 +1,11 @@
 {
-  "name": "winccoa-hello-world",
-  "displayName": "WinCC OA — Hello World",
-  "description": "VS Code extension template for WinCC OA tools.",
-  "version": "0.0.2",
+  "name": "vscode-winccoa-database",
+  "displayName": "WinCC OA Database Explorer",
+  "description": "Browse and edit WinCC OA datapoint types and datapoints directly from VS Code",
+  "version": "0.1.0",
   "publisher": "winccoa-tools-pack",
   "author": "winccoa-tools-pack",
   "license": "MIT",
-  "icon": "resources/vscode-<your-repository>-icon.png",
   "categories": [
     "Other"
   ],
@@ -17,43 +16,94 @@
     "siemens",
     "etm",
     "industrial",
-    "automation"
+    "automation",
+    "para",
+    "datapoints",
+    "database"
   ],
   "private": false,
   "repository": {
     "type": "git",
-    "url": "https://github.com/winccoa-tools-pack/<your-repository>"
+    "url": "https://github.com/winccoa-tools-pack/vscode-winccoa-database"
   },
   "bugs": {
-    "url": "https://github.com/winccoa-tools-pack/<your-repository>/issues"
+    "url": "https://github.com/winccoa-tools-pack/vscode-winccoa-database/issues"
   },
-  "homepage": "https://github.com/winccoa-tools-pack/<your-repository>#readme",
+  "homepage": "https://github.com/winccoa-tools-pack/vscode-winccoa-database#readme",
   "engines": {
     "vscode": "^1.106.0"
   },
-  "main": "./out/extension.js",
+  "main": "./dist/extension.js",
   "activationEvents": [
     "onStartupFinished"
   ],
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "winccoa-para",
+          "title": "WinCC OA Database",
+          "icon": "resources/icons/para.svg"
+        }
+      ]
+    },
+    "views": {
+      "winccoa-para": [
+        {
+          "id": "winccoa-para.dptView",
+          "name": "Datapoint Types & Datapoints"
+        }
+      ]
+    },
     "commands": [
       {
-        "command": "winccoa.helloWorld",
-        "title": "WinCC OA: Hello World"
+        "command": "winccoa-para.refreshDptTree",
+        "title": "Refresh",
+        "icon": "$(refresh)",
+        "category": "WinCC OA Database"
+      },
+      {
+        "command": "winccoa-para.openConfigEditor",
+        "title": "Open Config Editor",
+        "category": "WinCC OA Database"
+      },
+      {
+        "command": "winccoa-para.selectProject",
+        "title": "Select WinCC OA Project",
+        "category": "WinCC OA Database"
       }
-    ]
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "winccoa-para.refreshDptTree",
+          "when": "view == winccoa-para.dptView",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "WinCC OA Database",
+      "properties": {
+        "winccoa-para.projectPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to WinCC OA project directory. Leave empty for auto-detection."
+        }
+      }
+    }
   },
-  "extensionDependencies": [
-    "RichardJanisch.winccoa-project-admin"
-  ],
+  "extensionDependencies": [],
   "dependencies": {
-    "@winccoa-tools-pack/npm-winccoa-core": "^0.1.1"
+    "better-sqlite3": "^12.6.2"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.0.3",
     "@eslint/js": "^9.39.2",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/mocha": "^10.0.10",
-    "@types/node": "25.x",
-    "@types/vscode": "^1.108.0",
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.106.0",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",
     "@vscode/vsce": "^3.7.1",
@@ -66,27 +116,29 @@
     "source-map": "^0.8.0-beta.0",
     "ts-loader": "^9.5.1",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3",
+    "typescript": "^5.3.0",
     "typescript-eslint": "^8.54.0",
     "webpack": "^5.97.1",
     "webpack-cli": "^5.1.4"
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./ && npm run copy-fixtures",
-    "copy-fixtures": "copyfiles -u 1 \"src/test/fixtures/**/*\" out/",
+    "compile": "webpack --mode production && npm run copy-fixtures",
+    "copy-fixtures": "copyfiles -u 1 \"src/test/fixtures/**/*\" dist/",
     "build": "npm run compile",
     "start": "code --extensionDevelopmentPath=.",
     "start:insiders": "code-insiders --extensionDevelopmentPath=.",
     "dev": "npm run watch",
-    "watch": "tsc -watch -p ./",
+    "watch": "webpack --mode development --watch",
+    "rebuild": "electron-rebuild -v 39.3.0",
+    "package": "npm run rebuild && vsce package",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint \"src/**/*.ts\"",
     "lint:fix": "eslint \"src/**/*.ts\" --fix",
     "lint:md": "markdownlint \"**/*.md\" --ignore node_modules",
     "lint:md:fix": "markdownlint \"**/*.md\" --ignore node_modules --fix",
-    "format": "prettier --write \"src/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\"",
+    "format": "prettier --write \"**/*.{ts,js,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,js,json,md}\"",
     "test": "vscode-test",
     "test:unit": "vscode-test --label unitTests",
     "test:integrationt": "vscode-test --label integrationTests",

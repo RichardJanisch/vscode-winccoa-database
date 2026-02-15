@@ -1,135 +1,143 @@
-# WinCC OA VS Code Extension Template
+# WinCC OA Database Explorer
 
-Template repository for building **VS Code extensions for WinCC OA**, with a GitFlow-style branching model and a CI → prerelease → release pipeline.
+[![CI/CD](https://github.com/winccoa-tools-pack/vscode-winccoa-database/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/winccoa-tools-pack/vscode-winccoa-database/actions/workflows/ci-cd.yml)
+[![Visual Studio Marketplace](https://img.shields.io/visual-studio-marketplace/v/winccoa-tools-pack.vscode-winccoa-database)](https://marketplace.visualstudio.com/items?itemName=winccoa-tools-pack.vscode-winccoa-database)
 
-## Quick start
+A VS Code extension that recreates the WinCC OA PARA module, providing a graphical interface for browsing and editing datapoint types (DPTs), datapoints (DPs), and their configurations directly from VS Code.
 
-Create a new repository from this template, then:
+## Features
+
+### Unified Tree View
+
+Browse DPTs, their DP instances, and element hierarchies in a single tree:
+
+- **DPT** (symbol-class) → **DP instances** (database) → **element tree** (struct/field)
+- Click on leaf elements to open the config editor
+
+### Config Editor Webview
+
+View all configurations for a datapoint element:
+
+- Current value with timestamp, status, and type info
+- Address, alert handling, archive, PV range, smoothing, distribution configs
+- Set values through the WinCC OA event manager
+
+### Project Auto-Detection
+
+Automatically connects to WinCC OA projects via:
+
+1. Extension settings (`winccoa-para.projectPath`)
+2. `winccoa-project-admin` extension API 
+3. Workspace folder detection
+
+## Architecture
+
+```
+VS Code Extension
+  |
+  |-- SQLite (read-only) -------> ident.sqlite    (DPTs, elements, DPs)
+  |                                config.sqlite   (address, alert, archive, ...)
+  |                                last_value.sqlite (current values)
+  |
+  |-- MCP HTTP Client (write) --> MCP HTTP Server --> WinCC OA Event Manager
+                                  (localhost:3001)
+```
+
+- **Reading**: All data is read from SQLite databases at `{projectDir}/db/wincc_oa/sqlite/`
+- **Writing**: Values are set through the WinCC OA MCP HTTP server, which routes them through the event manager
+
+> **Note**: Direct SQLite writes do not propagate to the WinCC OA runtime. Use the MCP server for value changes.
+
+## Prerequisites
+
+- VS Code 1.106+
+- WinCC OA 3.20 or higher (requires SQLite cache)
+- A running WinCC OA project with SQLite databases
+- WinCC OA MCP HTTP server running (for value setting)
+- [winccoa-project-admin](https://marketplace.visualstudio.com/items?itemName=RichardJanisch.winccoa-project-admin) extension (optional, for auto-detection)
+
+## Installation
+
+### From VS Code Marketplace
+
+1. Open VS Code
+2. Go to Extensions (Ctrl+Shift+X)
+3. Search for "WinCC OA Database Explorer"
+4. Click Install
+
+### From VSIX
 
 ```bash
+code --install-extension vscode-winccoa-database-X.Y.Z.vsix
+```
+
+## Development
+
+### Setup
+
+```bash
+# Install dependencies
 npm install
+
+# Rebuild native modules for VS Code's Electron
+npm run rebuild
+
+# Compile
 npm run compile
-npm run test:unit
 ```
 
-Run locally in VS Code:
+### Run Locally
 
-To launch this extension, press **F5** in your VS Code instance to open an **Extension Development Host**.
+Press **F5** in VS Code to launch the Extension Development Host.
 
-## Customize the template
+### Development Scripts
 
-Update placeholders in `package.json`:
+- **Build**: `npm run compile`
+- **Watch**: `npm run watch` (auto-recompile on changes)
+- **Rebuild native**: `npm run rebuild`
+- **Package**: `npm run package`
+- **Lint**: `npm run lint`
+- **Format check**: `npm run format:check`
+- **Unit tests**: `npm run test:unit`
+- **Integration tests**: `npm run test:integrationt`
 
-- `name`, `displayName`, `description`
-- `publisher` (VS Code Marketplace publisher ID) - **Note:** It's recommended to use the organization's publisher for easier trust and no need for individual VSCE tokens.
-- `icon` (e.g. `resources/vscode-<your-repository>-icon.png`)
-- `repository.url`, `bugs.url`, `homepage`
-- `activationEvents` and `contributes.commands[].command`
-
-Example:
-
-```bash
-npm pkg set name='vscode-my-extension'
-npm pkg set displayName='WinCC OA — My Extension'
-# Optional: Set your own publisher if not using the organization's
-# npm pkg set publisher='my-publisher'  # Requires VSCE_PAT and user trust
-```
-
-Additionally, this template includes a dummy "Hello World" project. Search for and replace the following placeholders throughout the codebase:
-
-- `'hello-world'` → your extension's identifier or name
-- `'<your-repository>'` → your repository name
-
-Also, update `src/const.ts` with the appropriate values for `EXTENSION_ID`, `EXTENSION_NAME`, and `EXTENSION_CONFIG_SECTION`.
-
-## Development scripts
-
-These scripts exist in this template:
-
-- Build: `npm run compile`
-- Watch: `npm run watch`
-- Lint: `npm run lint` and `npm run lint:md`
-- Format check: `npm run format:check`
-- Unit tests: `npm run test:unit`
-- Integration tests (WinCC OA container): `npm run ci:integration`
-
-## Branching model (GitFlow)
+## Branching Model (GitFlow)
 
 - `develop` is the default branch (day-to-day work)
 - `main` is the stable branch (releases)
 - `feature/*` / `bugfix/*` target `develop`
 - `release/vX.Y.Z` and `hotfix/vX.Y.Z` target `main`
 
-Automation overview:
+More details: [docs/automation/GITFLOW_WORKFLOW.md](docs/automation/GITFLOW_WORKFLOW.md)
 
-- PR validation: `.github/workflows/gitflow-validation.yml`
-- Upmerge `main` → `develop` via PR: `.github/workflows/gitflow.yml`
-- Create release/hotfix branches + PR: `.github/workflows/create-release-branch.yml`
-  - Important: this workflow does **not** update `CHANGELOG.md`.
+## CI/CD Pipeline
 
-More details:
+- **CI Pipeline**: `.github/workflows/ci-cd.yml`
+- **Pre-releases**: Created on PRs to `main`
+- **Stable releases**: Created from `main` branch
+- **Integration tests**: `.github/workflows/integration-winccoa.yml`
 
-- `docs/automation/GITFLOW_WORKFLOW.md`
+More details: [docs/automation/CI-INTEGRATION.md](docs/automation/CI-INTEGRATION.md)
 
-## CI + Integration tests
+## Roadmap
 
-- CI pipeline: `.github/workflows/ci-cd.yml`
-- WinCC OA integration tests: `.github/workflows/integration-winccoa.yml`
+- [ ] DPT editor webview (edit element tree structure)
+- [ ] Create/delete datapoints and datapoint types
+- [ ] Config editing (address, alert handling, archive, etc.)
+- [ ] Search/filter in tree view
+- [ ] Historical data access (PostgreSQL)
+- [ ] Multi-language support for display names
+- [ ] Drag & drop for element reordering
+- [ ] File watcher for SQLite database changes
+- [ ] Support for distributed systems
 
-More details:
+## Contributing
 
-- `docs/automation/CI-INTEGRATION.md`
-
-## Pre-release + release pipeline
-
-This template uses a **tested-artifact flow**:
-
-1. A prerelease workflow builds/tests and uploads a VSIX to a GitHub **pre-release**.
-2. The stable release workflow requires that prerelease artifact and republishes that tested VSIX.
-
-Workflows:
-
-- `.github/workflows/pre-release.yml` (alpha prerelease on PRs to `main`)
-- `.github/workflows/release.yml` + `.github/workflows/release-reusable.yml` (stable release from `main`)
-
-Marketplace publishing:
-
-- Optional secret: `VSCE_PAT` (if set, the release workflow publishes to the VS Code Marketplace).
-
-## First-time setup checklist
-
-- Fill out the vision document: `docs/dev/VISION.md`.
-- Update placeholders in `package.json` (name, publisher, repo URLs, command IDs).
-- Decide on your default branch strategy (this template assumes `develop` is default).
-- Configure secrets (as needed):
-  - `VSCE_PAT` (optional) to publish to VS Code Marketplace during stable release.
-  - `REPO_ADMIN_TOKEN` (recommended) to let `.github/workflows/apply-settings-and-rulesets.yml` apply `.github/repository.settings.yml` and `.github/rulesets/*`.
-  - `DOCKER_USER` + `DOCKER_PASSWORD` (optional) only if your WinCC OA image is private on Docker Hub.
-- Run Actions once to verify everything:
-  - `CI/CD Pipeline`
-  - `PR Labels` (open a PR to see labels apply)
-  - `Git Flow Validation` (open a PR to see validation)
-  - `Integration Tests - WinCC OA` (optional; requires a working image)
-
-## Repo settings + rulesets automation
-
-This template can apply repository settings + rulesets from YAML:
-
-- Source of truth:
-  - `.github/repository.settings.yml`
-  - `.github/rulesets/*.yml`
-- Workflow:
-  - `.github/workflows/apply-settings-and-rulesets.yml`
-
-To apply settings/rulesets, provide an admin-capable token:
-
-- Secret: `REPO_ADMIN_TOKEN`
-  - Classic PAT: scope `repo` (and authorize SSO if required)
-  - Fine-grained PAT: repository access + **Administration: Read and write**
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 
-MIT License. See <https://github.com/winccoa-tools-pack/.github/blob/main/LICENSE>.
+MIT License. See [LICENSE](LICENSE).
 
 ## Disclaimer
 
@@ -139,8 +147,10 @@ WinCC OA and Siemens are trademarks of Siemens AG. This is a community project a
 
 ## Quick Links
 
-• [📦 VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=mPokornyETM.wincc-oa-tools-pack)
+• [📦 VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=winccoa-tools-pack.vscode-winccoa-database)  
+• [🐛 Issue Tracker](https://github.com/winccoa-tools-pack/vscode-winccoa-database/issues)  
+• [📖 Documentation](https://github.com/winccoa-tools-pack/vscode-winccoa-database/tree/main/docs)
 
 ---
 
-<center>Made with ❤️ for and by the WinCC OA community</center>
+<div align="center">Made with ❤️ for and by the WinCC OA community</div>
