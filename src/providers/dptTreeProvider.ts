@@ -3,11 +3,11 @@ import type { SqliteClient } from '../db/sqliteClient';
 import type { DpElement } from '../models/dpElement';
 import { getTypeName, OaElementType } from '../models/types';
 
-const log = vscode.window.createOutputChannel('WinCC OA PARA', { log: true });
+const log = vscode.window.createOutputChannel('WinCC OA Database', { log: true });
 
 type ItemType = 'dpt' | 'dp' | 'dpElement';
 
-export class ParaTreeItem extends vscode.TreeItem {
+export class DatabaseTreeItem extends vscode.TreeItem {
   constructor(
     public readonly label: string,
     public readonly collapsibleState: vscode.TreeItemCollapsibleState,
@@ -40,7 +40,7 @@ export class ParaTreeItem extends vscode.TreeItem {
           this.description = getTypeName(datatype);
           // Open config editor on click for leaf elements
           this.command = {
-            command: 'winccoa-para.openConfigEditor',
+            command: 'winccoa-database.openConfigEditor',
             title: 'Open Config Editor',
             arguments: [this],
           };
@@ -50,8 +50,8 @@ export class ParaTreeItem extends vscode.TreeItem {
   }
 }
 
-export class DptTreeProvider implements vscode.TreeDataProvider<ParaTreeItem> {
-  private _onDidChangeTreeData = new vscode.EventEmitter<ParaTreeItem | undefined | null>();
+export class DptTreeProvider implements vscode.TreeDataProvider<DatabaseTreeItem> {
+  private _onDidChangeTreeData = new vscode.EventEmitter<DatabaseTreeItem | undefined | null>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
   private showInternal = false;
@@ -67,11 +67,11 @@ export class DptTreeProvider implements vscode.TreeDataProvider<ParaTreeItem> {
     this.refresh();
   }
 
-  getTreeItem(element: ParaTreeItem): vscode.TreeItem {
+  getTreeItem(element: DatabaseTreeItem): vscode.TreeItem {
     return element;
   }
 
-  getChildren(element?: ParaTreeItem): ParaTreeItem[] {
+  getChildren(element?: DatabaseTreeItem): DatabaseTreeItem[] {
     log.info(`[Tree] getChildren called, element=${element?.label || 'ROOT'} (${element?.itemType || '-'}), db.isOpen=${this.db.isOpen}`);
     if (!this.db.isOpen) {
       log.warn('[Tree] getChildren: db not open, returning empty');
@@ -95,13 +95,13 @@ export class DptTreeProvider implements vscode.TreeDataProvider<ParaTreeItem> {
   }
 
   /** Root level: all DPTs */
-  private getRootChildren(): ParaTreeItem[] {
+  private getRootChildren(): DatabaseTreeItem[] {
     const dpTypes = this.db.getAllDpTypes();
     log.info(`[Tree] Root: ${dpTypes.length} DPTs total`);
     const filtered = dpTypes.filter(dpt => this.showInternal || !dpt.canonical_name.startsWith('_'));
     log.info(`[Tree] Root: ${filtered.length} DPTs after filter`);
 
-    return filtered.map(dpt => new ParaTreeItem(
+    return filtered.map(dpt => new DatabaseTreeItem(
       dpt.canonical_name,
       vscode.TreeItemCollapsibleState.Collapsed,
       'dpt',
@@ -110,14 +110,14 @@ export class DptTreeProvider implements vscode.TreeDataProvider<ParaTreeItem> {
   }
 
   /** DPT expanded: show DP instances of this type */
-  private getDptChildren(dptId: number): ParaTreeItem[] {
+  private getDptChildren(dptId: number): DatabaseTreeItem[] {
     const datapoints = this.db.getDatapointsByDptId(dptId);
     log.info(`[Tree] DPT ${dptId}: ${datapoints.length} datapoints`);
 
     return datapoints.map(dp => {
         const elements = this.db.getElementsByDptId(dp.dpt_id);
         const hasChildren = elements.length > 1;
-        return new ParaTreeItem(
+        return new DatabaseTreeItem(
           dp.canonical_name,
           hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
           'dp',
@@ -128,18 +128,18 @@ export class DptTreeProvider implements vscode.TreeDataProvider<ParaTreeItem> {
   }
 
   /** DP expanded: show element tree (skip root element, show its children) */
-  private getDpChildren(dptId: number, dpId: number): ParaTreeItem[] {
+  private getDpChildren(dptId: number, dpId: number): DatabaseTreeItem[] {
     const elements = this.db.getElementsByDptId(dptId);
     return this.buildElementChildren(elements, 0, dpId);
   }
 
   /** Element expanded: show child elements */
-  private getElementChildren(dptId: number, dpId: number, parentElId: number): ParaTreeItem[] {
+  private getElementChildren(dptId: number, dpId: number, parentElId: number): DatabaseTreeItem[] {
     const elements = this.db.getElementsByDptId(dptId);
     return this.buildElementChildren(elements, parentElId, dpId);
   }
 
-  private buildElementChildren(elements: DpElement[], parentElId: number, dpId: number): ParaTreeItem[] {
+  private buildElementChildren(elements: DpElement[], parentElId: number, dpId: number): DatabaseTreeItem[] {
     // If parentElId is 0, find the root element and get its children
     if (parentElId === 0 && elements.length > 0) {
       const rootEl = elements.find(e => e.parent_el_id === 0);
@@ -154,7 +154,7 @@ export class DptTreeProvider implements vscode.TreeDataProvider<ParaTreeItem> {
       const hasChildren = elements.some(e => e.parent_el_id === el.el_id && e.el_id !== el.el_id);
       const isExpandable = hasChildren || el.datatype === OaElementType.STRUCT || el.datatype === OaElementType.REFERENCE;
 
-      return new ParaTreeItem(
+      return new DatabaseTreeItem(
         el.canonical_name,
         isExpandable ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
         'dpElement',
