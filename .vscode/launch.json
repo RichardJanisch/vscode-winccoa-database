@@ -6,32 +6,29 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"name": "Run Template Extension (only)",
+			"name": "Run Database Extension",
 			"type": "extensionHost",
 			"request": "launch",
 			"args": [
-			//	"--disable-extensions",
 				"--extensionDevelopmentPath=${workspaceFolder}"
 			],
 			"outFiles": [
-				"${workspaceFolder}/out/**/*.js"
+				"${workspaceFolder}/dist/**/*.js"
 			],
-			"preLaunchTask": "dev:template-only"
+			"preLaunchTask": "${defaultBuildTask}"
 		},
 		{
-			"name": "Run Template + Project Admin (dev)",
+			"name": "Extension Tests",
 			"type": "extensionHost",
 			"request": "launch",
 			"args": [
-				"--disable-extensions",
-				"--extensionDevelopmentPath=${workspaceFolder}/../vscode-winccoa-project-admin",
-				"--extensionDevelopmentPath=${workspaceFolder}"
+				"--extensionDevelopmentPath=${workspaceFolder}",
+				"--extensionTestsPath=${workspaceFolder}/dist/test/unit/index"
 			],
 			"outFiles": [
-				"${workspaceFolder}/../vscode-winccoa-project-admin/out/**/*.js",
-				"${workspaceFolder}/out/**/*.js"
+				"${workspaceFolder}/dist/**/*.js"
 			],
-			"preLaunchTask": "dev:template+project-admin"
+			"preLaunchTask": "${defaultBuildTask}"
 		}
 	]
 }
