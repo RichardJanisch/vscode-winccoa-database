@@ -71,6 +71,28 @@ VS Code Extension
 code --install-extension vscode-winccoa-database-X.Y.Z.vsix
 ```
 
+> **⚠️ Platform-Specific Builds**: The extension includes native Node modules (`better-sqlite3`) that are platform-specific. The pre-packaged VSIX is built for **Windows**. If you're running on **Linux** or **macOS**, you'll need to rebuild the native modules:
+>
+> ```bash
+> # After installing the extension, rebuild for your platform
+> cd ~/.vscode/extensions/winccoa-tools-pack.vscode-winccoa-database-*
+> npm run rebuild
+> 
+> # Or for VS Code Server (Remote SSH)
+> cd ~/.vscode-server/extensions/winccoa-tools-pack.vscode-winccoa-database-*
+> npm install
+> npm run rebuild
+> ```
+>
+> Alternatively, build the extension on your target platform:
+> ```bash
+> git clone https://github.com/winccoa-tools-pack/vscode-winccoa-database
+> cd vscode-winccoa-database
+> npm install
+> npm run package
+> code --install-extension vscode-winccoa-database-*.vsix
+> ```
+
 ## Development
 
 ### Setup
