@@ -93,19 +93,16 @@
     }
   },
   "extensionDependencies": [],
-  "dependencies": {
-    "better-sqlite3": "^12.6.2"
-  },
   "devDependencies": {
-    "@electron/rebuild": "^4.0.3",
     "@eslint/js": "^9.39.2",
-    "@types/better-sqlite3": "^7.6.13",
     "@types/mocha": "^10.0.10",
     "@types/node": "^20.11.0",
+    "@types/sql.js": "^1.4.9",
     "@types/vscode": "^1.106.0",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",
     "@vscode/vsce": "^3.7.1",
+    "copy-webpack-plugin": "^13.0.1",
     "copyfiles": "^2.4.1",
     "eslint": "^9.39.2",
     "glob": "^13.0.0",
@@ -129,8 +126,7 @@
     "start:insiders": "code-insiders --extensionDevelopmentPath=.",
     "dev": "npm run watch",
     "watch": "webpack --mode development --watch",
-    "rebuild": "electron-rebuild -v 39.3.0",
-    "package": "npm run rebuild && vsce package",
+    "package": "vsce package",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint \"src/**/*.ts\"",
     "lint:fix": "eslint \"src/**/*.ts\" --fix",
@@ -143,5 +139,8 @@
     "test:integrationt": "vscode-test --label integrationTests",
     "ci:integration": "npm ci && npm run compile && npm run test:integrationt",
     "style-check": "npm run format:check && npm run lint"
+  },
+  "dependencies": {
+    "sql.js": "^1.14.0"
   }
 }
