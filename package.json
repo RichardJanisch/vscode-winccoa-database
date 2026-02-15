@@ -1,0 +1,96 @@
+{
+  "name": "winccoa-hello-world",
+  "displayName": "WinCC OA — Hello World",
+  "description": "VS Code extension template for WinCC OA tools.",
+  "version": "0.0.2",
+  "publisher": "winccoa-tools-pack",
+  "author": "winccoa-tools-pack",
+  "license": "MIT",
+  "icon": "resources/vscode-<your-repository>-icon.png",
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "wincc-oa",
+    "scada",
+    "hmi",
+    "siemens",
+    "etm",
+    "industrial",
+    "automation"
+  ],
+  "private": false,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/winccoa-tools-pack/<your-repository>"
+  },
+  "bugs": {
+    "url": "https://github.com/winccoa-tools-pack/<your-repository>/issues"
+  },
+  "homepage": "https://github.com/winccoa-tools-pack/<your-repository>#readme",
+  "engines": {
+    "vscode": "^1.106.0"
+  },
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "winccoa.helloWorld",
+        "title": "WinCC OA: Hello World"
+      }
+    ]
+  },
+  "extensionDependencies": [
+    "RichardJanisch.winccoa-project-admin"
+  ],
+  "dependencies": {
+    "@winccoa-tools-pack/npm-winccoa-core": "^0.1.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "25.x",
+    "@types/vscode": "^1.108.0",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.7.1",
+    "copyfiles": "^2.4.1",
+    "eslint": "^9.39.2",
+    "glob": "^13.0.0",
+    "markdownlint-cli": "^0.47.0",
+    "mocha": "^11.3.0",
+    "prettier": "^3.8.1",
+    "source-map": "^0.8.0-beta.0",
+    "ts-loader": "^9.5.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.54.0",
+    "webpack": "^5.97.1",
+    "webpack-cli": "^5.1.4"
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./ && npm run copy-fixtures",
+    "copy-fixtures": "copyfiles -u 1 \"src/test/fixtures/**/*\" out/",
+    "build": "npm run compile",
+    "start": "code --extensionDevelopmentPath=.",
+    "start:insiders": "code-insiders --extensionDevelopmentPath=.",
+    "dev": "npm run watch",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint \"src/**/*.ts\"",
+    "lint:fix": "eslint \"src/**/*.ts\" --fix",
+    "lint:md": "markdownlint \"**/*.md\" --ignore node_modules",
+    "lint:md:fix": "markdownlint \"**/*.md\" --ignore node_modules --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "test": "vscode-test",
+    "test:unit": "vscode-test --label unitTests",
+    "test:integrationt": "vscode-test --label integrationTests",
+    "ci:integration": "npm ci && npm run compile && npm run test:integrationt",
+    "style-check": "npm run format:check && npm run lint"
+  }
+}
