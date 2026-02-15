@@ -2,6 +2,7 @@
 'use strict';
 
 const path = require('path');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 /** @type {import('webpack').Configuration} */
 const config = {
@@ -14,7 +15,7 @@ const config = {
   },
   externals: {
     vscode: 'commonjs vscode',
-    'better-sqlite3': 'commonjs better-sqlite3',
+    'sql.js': 'commonjs sql.js',
   },
   resolve: {
     extensions: ['.ts', '.js'],
@@ -28,6 +29,16 @@ const config = {
       },
     ],
   },
+  plugins: [
+    new CopyWebpackPlugin({
+      patterns: [
+        {
+          from: 'node_modules/sql.js/dist/sql-wasm.wasm',
+          to: 'sql-wasm.wasm',
+        },
+      ],
+    }),
+  ],
   devtool: 'nosources-source-map',
 };
 
