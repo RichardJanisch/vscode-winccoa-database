@@ -152,9 +152,14 @@ async function initProjectConnection(context: vscode.ExtensionContext): Promise<
   log.info('--- initProjectConnection start ---');
 
   // 1. Check extension setting
-  const configPath = vscode.workspace.getConfiguration('winccoa-database').get<string>('projectPath');
-  log.info(`Step 1 - Extension setting winccoa-database.projectPath: "${configPath || ''}"`); 
+  let configPath = vscode.workspace.getConfiguration('winccoa-database').get<string>('projectPath');
+  log.info(`Step 1 - Extension setting winccoa-database.projectPath: "${configPath || ''}"`);
   if (configPath && configPath.trim() !== '') {
+    // Fix path separators on non-Windows platforms (backslashes are not valid path separators on Linux/Mac)
+    if (process.platform !== 'win32') {
+      configPath = configPath.replace(/\\/g, '/');
+      log.info(`Converted path separators for ${process.platform}: ${configPath}`);
+    }
     log.info(`Using project path from settings: ${configPath}`);
     connectToProject(configPath);
     // Still set up listener for future changes
@@ -210,6 +215,10 @@ function disconnectProject(message?: string): void {
 
 function connectToProject(projectPath: string, version?: string): void {
   log.info(`connectToProject("${projectPath}", version="${version || 'unknown'}")`);
+
+  // Normalize path separators for the current platform (fixes Linux path issues)
+  projectPath = path.normalize(projectPath);
+  log.info(`Normalized project path: ${projectPath}`);
 
   // Version check: SQLite cache requires WinCC OA >= 3.20
   if (version && version < MIN_SUPPORTED_VERSION) {
