@@ -7,7 +7,7 @@ import { getAlarmState, getAlarmColorName, resolveColor, getBlinkClass, getAlarm
 
 export class ConfigEditorPanel {
   public static currentPanel: ConfigEditorPanel | undefined;
-  private static readonly viewType = 'winccoa-para.configEditor';
+  private static readonly viewType = 'winccoa-database.configEditor';
 
   private readonly panel: vscode.WebviewPanel;
   private disposables: vscode.Disposable[] = [];

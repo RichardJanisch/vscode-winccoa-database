@@ -17,9 +17,8 @@
     "etm",
     "industrial",
     "automation",
-    "para",
-    "datapoints",
-    "database"
+    "database",
+    "datapoints"
   ],
   "private": false,
   "repository": {
@@ -41,34 +40,34 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "winccoa-para",
+          "id": "winccoa-database",
           "title": "WinCC OA Database",
-          "icon": "resources/icons/para.svg"
+          "icon": "resources/icons/database.svg"
         }
       ]
     },
     "views": {
-      "winccoa-para": [
+      "winccoa-database": [
         {
-          "id": "winccoa-para.dptView",
+          "id": "winccoa-database.dptView",
           "name": "Datapoint Types & Datapoints"
         }
       ]
     },
     "commands": [
       {
-        "command": "winccoa-para.refreshDptTree",
+        "command": "winccoa-database.refreshDptTree",
         "title": "Refresh",
         "icon": "$(refresh)",
         "category": "WinCC OA Database"
       },
       {
-        "command": "winccoa-para.openConfigEditor",
+        "command": "winccoa-database.openConfigEditor",
         "title": "Open Config Editor",
         "category": "WinCC OA Database"
       },
       {
-        "command": "winccoa-para.selectProject",
+        "command": "winccoa-database.selectProject",
         "title": "Select WinCC OA Project",
         "category": "WinCC OA Database"
       }
@@ -76,8 +75,8 @@
     "menus": {
       "view/title": [
         {
-          "command": "winccoa-para.refreshDptTree",
-          "when": "view == winccoa-para.dptView",
+          "command": "winccoa-database.refreshDptTree",
+          "when": "view == winccoa-database.dptView",
           "group": "navigation"
         }
       ]
@@ -85,7 +84,7 @@
     "configuration": {
       "title": "WinCC OA Database",
       "properties": {
-        "winccoa-para.projectPath": {
+        "winccoa-database.projectPath": {
           "type": "string",
           "default": "",
           "description": "Path to WinCC OA project directory. Leave empty for auto-detection."

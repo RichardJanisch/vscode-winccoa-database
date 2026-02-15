@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 
-const log = vscode.window.createOutputChannel('WinCC OA PARA', { log: true });
+const log = vscode.window.createOutputChannel('WinCC OA Database', { log: true });
 
 export interface McpClientConfig {
   url: string;
