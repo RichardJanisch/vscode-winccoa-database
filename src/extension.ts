@@ -14,7 +14,7 @@ let mcpClient: McpClient;
 const MIN_SUPPORTED_VERSION = '3.20';
 
 // Debug output channel
-const log = vscode.window.createOutputChannel('WinCC OA PARA', { log: true });
+const log = vscode.window.createOutputChannel('WinCC OA Database', { log: true });
 
 const PROJECT_ADMIN_IDS = [
   'RichardJanisch.winccoa-project-admin',
@@ -22,7 +22,7 @@ const PROJECT_ADMIN_IDS = [
 ];
 
 export function activate(context: vscode.ExtensionContext) {
-  log.info('=== WinCC OA PARA extension activating ===');
+  log.info('=== WinCC OA Database extension activating ===');
 
   sqliteClient = new SqliteClient();
   mcpClient = new McpClient();
@@ -30,7 +30,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Register tree views
   log.info('Registering tree views...');
-  dptTreeView = vscode.window.createTreeView('winccoa-para.dptView', {
+  dptTreeView = vscode.window.createTreeView('winccoa-database.dptView', {
     treeDataProvider: dptTreeProvider,
     showCollapseAll: true,
   });
@@ -40,7 +40,7 @@ export function activate(context: vscode.ExtensionContext) {
   // Register webview panel serializer for config editor
   log.info('Registering webview panel serializer...');
   context.subscriptions.push(
-    vscode.window.registerWebviewPanelSerializer('winccoa-para.configEditor', {
+    vscode.window.registerWebviewPanelSerializer('winccoa-database.configEditor', {
       async deserializeWebviewPanel(webviewPanel: vscode.WebviewPanel, state: unknown) {
         log.info('Deserializing config editor webview panel');
         // The panel is already created, but we need to restore the ConfigEditorPanel instance
@@ -53,12 +53,12 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Register commands
   context.subscriptions.push(
-    vscode.commands.registerCommand('winccoa-para.refreshDptTree', () => {
+    vscode.commands.registerCommand('winccoa-database.refreshDptTree', () => {
       log.info('Command: refreshDptTree');
       dptTreeProvider.refresh();
     }),
-    vscode.commands.registerCommand('winccoa-para.selectProject', () => selectProject()),
-    vscode.commands.registerCommand('winccoa-para.openConfigEditor', (item) => {
+    vscode.commands.registerCommand('winccoa-database.selectProject', () => selectProject()),
+    vscode.commands.registerCommand('winccoa-database.openConfigEditor', (item) => {
       log.info(`Command: openConfigEditor, item=${JSON.stringify(item?.label)}, dpId=${item?.dpId}, elId=${item?.elId}`);
       if (item && item.dpId !== undefined && item.elId !== undefined) {
         openConfigEditor(item.dpId, item.elId, item.label, context.extensionUri);
@@ -70,11 +70,11 @@ export function activate(context: vscode.ExtensionContext) {
   // Auto-detect project (async: waits for project-admin if needed)
   initProjectConnection(context);
 
-  log.info('=== WinCC OA PARA extension activate() done ===');
+  log.info('=== WinCC OA Database extension activate() done ===');
 }
 
 export function deactivate() {
-  log.info('WinCC OA PARA deactivating');
+  log.info('WinCC OA Database deactivating');
   sqliteClient?.close();
 }
 
@@ -152,8 +152,8 @@ async function initProjectConnection(context: vscode.ExtensionContext): Promise<
   log.info('--- initProjectConnection start ---');
 
   // 1. Check extension setting
-  const configPath = vscode.workspace.getConfiguration('winccoa-para').get<string>('projectPath');
-  log.info(`Step 1 - Extension setting winccoa-para.projectPath: "${configPath || ''}"`);
+  const configPath = vscode.workspace.getConfiguration('winccoa-database').get<string>('projectPath');
+  log.info(`Step 1 - Extension setting winccoa-database.projectPath: "${configPath || ''}"`); 
   if (configPath && configPath.trim() !== '') {
     log.info(`Using project path from settings: ${configPath}`);
     connectToProject(configPath);
@@ -271,7 +271,7 @@ function connectToProject(projectPath: string, version?: string): void {
       });
     }
 
-    vscode.window.showInformationMessage(`WinCC OA PARA: Connected to ${path.basename(projectPath)} (${dpTypes.length} DPTs, ${datapoints.length} DPs)`);
+    vscode.window.showInformationMessage(`WinCC OA Database: Connected to ${path.basename(projectPath)} (${dpTypes.length} DPTs, ${datapoints.length} DPs)`);
   } catch (err) {
     log.error(`Failed to open SQLite databases: ${err}`);
     vscode.window.showErrorMessage(`Failed to open SQLite databases: ${err}`);
@@ -293,7 +293,7 @@ async function selectProject(): Promise<void> {
     const projectPath = result[0].fsPath;
     log.info(`User selected project: ${projectPath}`);
     connectToProject(projectPath);
-    await vscode.workspace.getConfiguration('winccoa-para').update('projectPath', projectPath, vscode.ConfigurationTarget.Global);
+    await vscode.workspace.getConfiguration('winccoa-database').update('projectPath', projectPath, vscode.ConfigurationTarget.Global);
   } else {
     log.info('User cancelled project selection');
   }
