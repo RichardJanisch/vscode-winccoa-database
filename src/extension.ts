@@ -282,8 +282,30 @@ function connectToProject(projectPath: string, version?: string): void {
 
     vscode.window.showInformationMessage(`WinCC OA Database: Connected to ${path.basename(projectPath)} (${dpTypes.length} DPTs, ${datapoints.length} DPs)`);
   } catch (err) {
-    log.error(`Failed to open SQLite databases: ${err}`);
-    vscode.window.showErrorMessage(`Failed to open SQLite databases: ${err}`);
+    const errorMsg = String(err);
+    log.error(`Failed to open SQLite databases: ${errorMsg}`);
+    
+    // Check for platform mismatch error (native module compiled for wrong platform)
+    if (errorMsg.includes('invalid ELF header') || errorMsg.includes('not a valid Win32 application')) {
+      const extensionId = 'winccoa-tools-pack.vscode-winccoa-database';
+      const platformMsg = `Native module platform mismatch detected. The better-sqlite3 module needs to be rebuilt for ${process.platform}.\n\n` +
+        `Please rebuild the extension:\n` +
+        `1. Open a terminal on your ${process.platform} machine\n` +
+        `2. Find the extension directory (usually ~/.vscode/extensions/${extensionId}-* or ~/.vscode-server/extensions/${extensionId}-*)\n` +
+        `3. Run: npm install && npm run rebuild\n` +
+        `4. Reload VS Code window\n\n` +
+        `See the README for detailed instructions.`;
+      
+      vscode.window.showErrorMessage(platformMsg, 'Open README').then(selection => {
+        if (selection === 'Open README') {
+          vscode.env.openExternal(vscode.Uri.parse('https://github.com/winccoa-tools-pack/vscode-winccoa-database#from-vsix'));
+        }
+      });
+      log.error(platformMsg);
+    } else {
+      vscode.window.showErrorMessage(`Failed to open SQLite databases: ${errorMsg}`);
+    }
+    
     disconnectProject(`Failed to open SQLite databases for project "${path.basename(projectPath)}".`);
   }
 }
