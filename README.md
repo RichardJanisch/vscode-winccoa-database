@@ -26,7 +26,7 @@ View all configurations for a datapoint element:
 
 Automatically connects to WinCC OA projects via:
 
-1. Extension settings (`winccoa-para.projectPath`)
+1. Extension settings (`winccoa-database.projectPath`)
 2. `winccoa-project-admin` extension API 
 3. Workspace folder detection
 
@@ -35,7 +35,7 @@ Automatically connects to WinCC OA projects via:
 ```
 VS Code Extension
   |
-  |-- SQLite (read-only) -------> ident.sqlite    (DPTs, elements, DPs)
+  |-- sql.js (read-only) -------> ident.sqlite    (DPTs, elements, DPs)
   |                                config.sqlite   (address, alert, archive, ...)
   |                                last_value.sqlite (current values)
   |
@@ -43,7 +43,7 @@ VS Code Extension
                                   (localhost:3001)
 ```
 
-- **Reading**: All data is read from SQLite databases at `{projectDir}/db/wincc_oa/sqlite/`
+- **Reading**: All data is read from SQLite databases at `{projectDir}/db/wincc_oa/sqlite/` using sql.js (WebAssembly-based SQLite, cross-platform)
 - **Writing**: Values are set through the WinCC OA MCP HTTP server, which routes them through the event manager
 
 > **Note**: Direct SQLite writes do not propagate to the WinCC OA runtime. Use the MCP server for value changes.
@@ -71,27 +71,7 @@ VS Code Extension
 code --install-extension vscode-winccoa-database-X.Y.Z.vsix
 ```
 
-> **⚠️ Platform-Specific Builds**: The extension includes native Node modules (`better-sqlite3`) that are platform-specific. The pre-packaged VSIX is built for **Windows**. If you're running on **Linux** or **macOS**, you'll need to rebuild the native modules:
->
-> ```bash
-> # After installing the extension, rebuild for your platform
-> cd ~/.vscode/extensions/winccoa-tools-pack.vscode-winccoa-database-*
-> npm run rebuild
-> 
-> # Or for VS Code Server (Remote SSH)
-> cd ~/.vscode-server/extensions/winccoa-tools-pack.vscode-winccoa-database-*
-> npm install
-> npm run rebuild
-> ```
->
-> Alternatively, build the extension on your target platform:
-> ```bash
-> git clone https://github.com/winccoa-tools-pack/vscode-winccoa-database
-> cd vscode-winccoa-database
-> npm install
-> npm run package
-> code --install-extension vscode-winccoa-database-*.vsix
-> ```
+The extension works cross-platform on Windows, Linux, and macOS without requiring additional setup.
 
 ## Development
 
@@ -100,9 +80,6 @@ code --install-extension vscode-winccoa-database-X.Y.Z.vsix
 ```bash
 # Install dependencies
 npm install
-
-# Rebuild native modules for VS Code's Electron
-npm run rebuild
 
 # Compile
 npm run compile
@@ -116,7 +93,6 @@ Press **F5** in VS Code to launch the Extension Development Host.
 
 - **Build**: `npm run compile`
 - **Watch**: `npm run watch` (auto-recompile on changes)
-- **Rebuild native**: `npm run rebuild`
 - **Package**: `npm run package`
 - **Lint**: `npm run lint`
 - **Format check**: `npm run format:check`
