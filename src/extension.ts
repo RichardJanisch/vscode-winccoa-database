@@ -21,10 +21,22 @@ const PROJECT_ADMIN_IDS = [
   'winccoa-tools-pack.winccoa-project-admin',
 ];
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
   log.info('=== WinCC OA Database extension activating ===');
 
   sqliteClient = new SqliteClient();
+  
+  // Initialize sql.js WASM module
+  try {
+    log.info('Initializing sql.js...');
+    await sqliteClient.init();
+    log.info('sql.js initialized successfully');
+  } catch (err) {
+    log.error(`Failed to initialize sql.js: ${err}`);
+    vscode.window.showErrorMessage(`Failed to initialize WinCC OA Database extension: ${err}`);
+    throw err;
+  }
+  
   mcpClient = new McpClient();
   dptTreeProvider = new DptTreeProvider(sqliteClient);
 
