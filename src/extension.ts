@@ -37,6 +37,20 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(dptTreeView);
   log.info('Tree views registered');
 
+  // Register webview panel serializer for config editor
+  log.info('Registering webview panel serializer...');
+  context.subscriptions.push(
+    vscode.window.registerWebviewPanelSerializer('winccoa-para.configEditor', {
+      async deserializeWebviewPanel(webviewPanel: vscode.WebviewPanel, state: unknown) {
+        log.info('Deserializing config editor webview panel');
+        // The panel is already created, but we need to restore the ConfigEditorPanel instance
+        // For now, just dispose it - user will need to reopen
+        webviewPanel.dispose();
+      }
+    })
+  );
+  log.info('Webview panel serializer registered');
+
   // Register commands
   context.subscriptions.push(
     vscode.commands.registerCommand('winccoa-para.refreshDptTree', () => {
