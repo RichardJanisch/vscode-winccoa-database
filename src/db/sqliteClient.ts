@@ -1,6 +1,6 @@
 import * as path from 'path';
 import * as fs from 'fs';
-import initSqlJs, { Database as SqlJsDatabase } from 'sql.js';
+import Database, { type Database as DatabaseType } from 'better-sqlite3';
 import type { DpType } from '../models/dpType';
 import type { DpElement } from '../models/dpElement';
 import type { Datapoint } from '../models/datapoint';
@@ -23,46 +23,13 @@ import type {
 const SQLITE_DIR = 'db/wincc_oa/sqlite';
 
 export class SqliteClient {
-  private identDb: SqlJsDatabase | null = null;
-  private configDb: SqlJsDatabase | null = null;
-  private lastValueDb: SqlJsDatabase | null = null;
-  private lastAlertDb: SqlJsDatabase | null = null;
+  private identDb: DatabaseType | null = null;
+  private configDb: DatabaseType | null = null;
+  private lastValueDb: DatabaseType | null = null;
+  private lastAlertDb: DatabaseType | null = null;
   private projectPath: string = '';
-  private SQL: any = null;
 
   constructor() {}
-
-  /** Initialize sql.js WASM module (must be called once before using the client) */
-  async init(): Promise<void> {
-    if (!this.SQL) {
-      console.log('Starting sql.js initialization...');
-      try {
-        // Initialize sql.js with locateFile pointing to the dist directory where webpack copies the WASM file
-        this.SQL = await initSqlJs({
-          locateFile: (file) => {
-            // Since sql.js is externalized in webpack, __dirname points to the dist folder
-            const resolvedPath = path.join(__dirname, file);
-            const fileExists = fs.existsSync(resolvedPath);
-            console.log(`sql.js locateFile: "${file}" -> "${resolvedPath}" (exists: ${fileExists})`);
-            if (!fileExists) {
-              console.error(`WASM file not found. __dirname: ${__dirname}`);
-              try {
-                const files = fs.readdirSync(__dirname).filter(f => f.endsWith('.wasm'));
-                console.log(`WASM files in directory:`, files);
-              } catch (e) {
-                console.error('Could not read directory:', e);
-              }
-            }
-            return resolvedPath;
-          }
-        });
-        console.log('sql.js initialized successfully');
-      } catch (err) {
-        console.error('Failed to initialize sql.js:', err);
-        throw new Error(`Failed to initialize sql.js: ${err}`);
-      }
-    }
-  }
 
   /** Connect to all SQLite databases for the given project */
   open(projectPath: string): void {
@@ -70,17 +37,18 @@ export class SqliteClient {
     this.projectPath = projectPath;
     const sqliteDir = path.join(projectPath, SQLITE_DIR);
 
-    // Load database files into memory
     const identPath = path.join(sqliteDir, 'ident.sqlite');
     const configPath = path.join(sqliteDir, 'config.sqlite');
     const lastValuePath = path.join(sqliteDir, 'last_value.sqlite');
     const lastAlertPath = path.join(sqliteDir, 'last_alert.sqlite');
 
-    // Read files as buffers and create sql.js databases
-    this.identDb = new this.SQL.Database(fs.readFileSync(identPath));
-    this.configDb = new this.SQL.Database(fs.readFileSync(configPath));
-    this.lastValueDb = new this.SQL.Database(fs.readFileSync(lastValuePath));
-    this.lastAlertDb = new this.SQL.Database(fs.readFileSync(lastAlertPath));
+    // Open databases in readonly mode — better-sqlite3 handles WAL files automatically
+    this.identDb = new Database(identPath, { readonly: true });
+    this.configDb = new Database(configPath, { readonly: true });
+    this.lastValueDb = new Database(lastValuePath, { readonly: true });
+    if (fs.existsSync(lastAlertPath)) {
+      this.lastAlertDb = new Database(lastAlertPath, { readonly: true });
+    }
   }
 
   /** Close all database connections */
@@ -100,29 +68,13 @@ export class SqliteClient {
   }
 
   /** Helper: Execute query and return all rows as objects */
-  private queryAll<T>(db: SqlJsDatabase, sql: string, params: any[] = []): T[] {
-    const result = db.exec(sql, params);
-    if (result.length === 0) return [];
-    const { columns, values } = result[0];
-    return values.map((row: any[]) => {
-      const obj: any = {};
-      columns.forEach((col: string, idx: number) => {
-        obj[col] = row[idx];
-      });
-      return obj as T;
-    });
+  private queryAll<T>(db: DatabaseType, sql: string, params: any[] = []): T[] {
+    return db.prepare(sql).all(...params) as T[];
   }
 
   /** Helper: Execute query and return first row as object */
-  private queryOne<T>(db: SqlJsDatabase, sql: string, params: any[] = []): T | undefined {
-    const result = db.exec(sql, params);
-    if (result.length === 0 || result[0].values.length === 0) return undefined;
-    const { columns, values } = result[0];
-    const obj: any = {};
-    columns.forEach((col: string, idx: number) => {
-      obj[col] = values[0][idx];
-    });
-    return obj as T;
+  private queryOne<T>(db: DatabaseType, sql: string, params: any[] = []): T | undefined {
+    return db.prepare(sql).get(...params) as T | undefined;
   }
 
   // ──── Datapoint Types ────
@@ -330,8 +282,10 @@ export class SqliteClient {
 
   /** Get active alert instances for a given dp element, with joined lang_text */
   getActiveAlerts(dpId: number, elId: number): AlertInstance[] {
+    if (!this.lastAlertDb) return [];
+
     const rows = this.queryAll<AlertInstance>(
-      this.lastAlertDb!,
+      this.lastAlertDb,
       `SELECT
         ai.alert_instance_id, ai.dp_id, ai.el_id, ai.detail_nr,
         ai.value_came, ai.value_went, ai.state_32,
@@ -348,7 +302,7 @@ export class SqliteClient {
     // Enrich with lang_text (came/went texts)
     for (const alert of rows) {
       const texts = this.queryAll<{ attribute_nr: number; text: string }>(
-        this.lastAlertDb!,
+        this.lastAlertDb,
         `SELECT attribute_nr, text FROM lang_text
          WHERE alert_instance_id = ? AND language_id = 10001`,
         [alert.alert_instance_id]
