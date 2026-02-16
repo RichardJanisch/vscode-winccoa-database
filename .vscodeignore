@@ -22,7 +22,9 @@ tsconfig.tsbuildinfo
 
 # Node modules (exclude all except production dependencies)
 node_modules/**
-!node_modules/sql.js/**
+!node_modules/better-sqlite3/**
+!node_modules/bindings/**
+!node_modules/file-uri-to-path/**
 
 # Exceptions for assets
 !resources/**
