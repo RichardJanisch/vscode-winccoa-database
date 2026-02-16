@@ -15,10 +15,10 @@ on:
     outputs:
       version:
         description: "Computed prerelease version (x.y.z-<shortsha>)"
-        value: ${{ jobs.prerelease.outputs.version }}
+        value: ${{ jobs.package.outputs.version }}
       tag:
         description: "Computed prerelease tag (v<version>)"
-        value: ${{ jobs.prerelease.outputs.tag }}
+        value: ${{ jobs.package.outputs.tag }}
 
 permissions:
   contents: write
@@ -38,9 +38,17 @@ jobs:
       force_push_tag: true
     secrets: inherit
 
-  prerelease:
-    runs-on: ubuntu-latest
+  package:
     needs: [versioning]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: win32-x64
+          - os: ubuntu-latest
+            target: linux-x64
     outputs:
       version: ${{ steps.meta.outputs.version }}
       tag: ${{ steps.meta.outputs.tag }}
@@ -73,6 +81,28 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
+      - name: Package extension (VSIX)
+        run: vsce package --target ${{ matrix.target }}
+
+      - name: Upload VSIX artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ format('vsix-{0}', matrix.target) }}
+          path: "*.vsix"
+          retention-days: 14
+
+  release:
+    needs: [versioning, package]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all VSIX artifacts
+        uses: actions/download-artifact@v6
+        with:
+          pattern: vsix-*
+          merge-multiple: true
+          path: dist
+
       - name: Build release body
         id: body
         shell: bash
@@ -83,29 +113,20 @@ jobs:
             echo ""
             echo "### 🔍 Testing Notes"
             echo "- This is a **pre-release** build; download the attached VSIX and test locally"
+            echo "- Platform-specific packages: **win32-x64**, **linux-x64**"
             echo "- Source branch: ${{ inputs.target_branch }}"
             echo "- Report issues at: https://github.com/${{ github.repository }}/issues"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Package extension (VSIX)
-        run: vsce package
-
-      - name: Upload VSIX artifact
-        uses: actions/upload-artifact@v6
-        with:
-          name: ${{ format('pre-release-{0}', github.sha) }}
-          path: "*.vsix"
-          retention-days: 14
-
       - name: Create GitHub prerelease
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.meta.outputs.tag }}
-          name: ${{ format('🧪 Pre-Release {0}', steps.meta.outputs.tag) }}
+          tag_name: ${{ needs.package.outputs.tag }}
+          name: ${{ format('🧪 Pre-Release {0}', needs.package.outputs.tag) }}
           target_commitish: ${{ inputs.target_branch != '' && inputs.target_branch || github.sha }}
           body: ${{ steps.body.outputs.body }}
-          files: "*.vsix"
+          files: "dist/*.vsix"
           draft: false
           prerelease: true
           generate_release_notes: true
