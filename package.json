@@ -121,6 +121,7 @@
     "vscode:prepublish": "npm run compile",
     "rebuild": "electron-rebuild -v 39.3.0",
     "compile": "webpack --mode production && npm run copy-fixtures",
+    "compile:tests": "tsc -p tsconfig.test.json",
     "copy-fixtures": "copyfiles -u 1 \"src/test/fixtures/**/*\" dist/",
     "build": "npm run compile",
     "start": "code --extensionDevelopmentPath=.",
@@ -128,7 +129,8 @@
     "dev": "npm run watch",
     "watch": "webpack --mode development --watch",
     "package": "npm run rebuild && vsce package",
-    "pretest": "npm run compile && npm run lint",
+    "pretest": "npm run test:fixtures && npm run compile && npm run compile:tests && npm run lint",
+    "test:fixtures": "node --experimental-sqlite scripts/create-test-fixtures.js",
     "lint": "eslint \"src/**/*.ts\"",
     "lint:fix": "eslint \"src/**/*.ts\" --fix",
     "lint:md": "markdownlint \"**/*.md\" --ignore node_modules",
@@ -137,8 +139,8 @@
     "format:check": "prettier --check \"**/*.{ts,js,json,md}\"",
     "test": "vscode-test",
     "test:unit": "vscode-test --label unitTests",
-    "test:integrationt": "vscode-test --label integrationTests",
-    "ci:integration": "npm ci && npm run compile && npm run test:integrationt",
+    "test:integration": "vscode-test --label integrationTests",
+    "ci:integration": "npm ci && npm run compile && npm run test:integration",
     "style-check": "npm run format:check && npm run lint"
   },
   "dependencies": {

@@ -2,10 +2,12 @@ import path from 'path';
 import fs from 'fs';
 
 /**
- * Gets the absolute path to the test fixtures directory
+ * Gets the absolute path to the test fixtures directory.
+ * Resolves from dist/test/ up to the workspace root then into src/test/fixtures/.
+ * The sqlite databases are generated into this directory by `npm run test:fixtures`.
  */
 export function getFixturesPath(): string {
-    return path.resolve(__dirname, '..', '..', 'test', 'fixtures');
+    return path.resolve(__dirname, '..', '..', 'src', 'test', 'fixtures');
 }
 
 /**
