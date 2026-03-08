@@ -11,6 +11,7 @@ NPM := npm
 VSCE := npx vsce
 
 # Test workspace configuration
+# On Linux: set TEST_WORKSPACE to your WinCC OA project directory
 TEST_WORKSPACE ?= .
 CODE_BIN ?= code
 FORCE_CLOSE_VSCODE ?= no
@@ -98,7 +99,8 @@ help:
 	@echo "  quick        - Build and package without cleaning"
 	@echo "  watch        - Watch and recompile extension on changes"
 	@echo "  rebuild      - Clean, install and build"
-	@echo "  test-local   - Not yet implemented (use build + package instead)"
+	@echo "  test-local   - Build, package with local stamp, install into running VS Code"
+	@echo "                 Use: TEST_WORKSPACE=/path/to/winccoa-project make test-local"
 	@echo "  help         - Show this help message"
 	@echo ""
 	@echo "Configuration:"

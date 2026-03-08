@@ -3,12 +3,13 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { SqliteClient } from './db/sqliteClient';
 import { DptTreeProvider } from './providers/dptTreeProvider';
+import { DatabaseTreeItem } from './providers/dptTreeProvider';
 import { ConfigEditorPanel } from './providers/configEditorProvider';
 import { McpClient } from './api/mcpClient';
 
 let sqliteClient: SqliteClient;
 let dptTreeProvider: DptTreeProvider;
-let dptTreeView: vscode.TreeView<any>;
+let dptTreeView: vscode.TreeView<DatabaseTreeItem>;
 let mcpClient: McpClient;
 
 const MIN_SUPPORTED_VERSION = '3.20';
@@ -41,7 +42,7 @@ export async function activate(context: vscode.ExtensionContext) {
   log.info('Registering webview panel serializer...');
   context.subscriptions.push(
     vscode.window.registerWebviewPanelSerializer('winccoa-database.configEditor', {
-      async deserializeWebviewPanel(webviewPanel: vscode.WebviewPanel, state: unknown) {
+      async deserializeWebviewPanel(webviewPanel: vscode.WebviewPanel) {
         log.info('Deserializing config editor webview panel');
         // The panel is already created, but we need to restore the ConfigEditorPanel instance
         // For now, just dispose it - user will need to reopen

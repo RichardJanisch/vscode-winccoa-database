@@ -68,12 +68,12 @@ export class SqliteClient {
   }
 
   /** Helper: Execute query and return all rows as objects */
-  private queryAll<T>(db: DatabaseType, sql: string, params: any[] = []): T[] {
+  private queryAll<T>(db: DatabaseType, sql: string, params: (string | number | null | bigint)[] = []): T[] {
     return db.prepare(sql).all(...params) as T[];
   }
 
   /** Helper: Execute query and return first row as object */
-  private queryOne<T>(db: DatabaseType, sql: string, params: any[] = []): T | undefined {
+  private queryOne<T>(db: DatabaseType, sql: string, params: (string | number | null | bigint)[] = []): T | undefined {
     return db.prepare(sql).get(...params) as T | undefined;
   }
 
