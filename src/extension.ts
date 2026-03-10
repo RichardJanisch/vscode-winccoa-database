@@ -5,12 +5,35 @@ import { SqliteClient } from './db/sqliteClient';
 import { DptTreeProvider } from './providers/dptTreeProvider';
 import { DatabaseTreeItem } from './providers/dptTreeProvider';
 import { ConfigEditorPanel } from './providers/configEditorProvider';
+import { DptEditorPanel } from './providers/dptEditorProvider';
 import { McpClient } from './api/mcpClient';
+import { PostgresClient } from './db/postgresClient';
+
+// ---------------------------------------------------------------------------
 
 let sqliteClient: SqliteClient;
 let dptTreeProvider: DptTreeProvider;
 let dptTreeView: vscode.TreeView<DatabaseTreeItem>;
 let mcpClient: McpClient;
+let postgresClient: PostgresClient;
+let dbWatchedFiles: string[] = [];
+let refreshDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+
+function scheduleDebouncedRefresh(filename: string, curr: fs.Stats, prev: fs.Stats): void {
+  log.info(`SQLite change detected — file: ${filename}, mtime: ${prev.mtime.toISOString()} → ${curr.mtime.toISOString()}, size: ${prev.size} → ${curr.size}`);
+  if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer);
+  refreshDebounceTimer = setTimeout(() => {
+    log.info('Debounce elapsed — firing tree refresh');
+    dptTreeProvider.refresh();
+  }, 1500);
+}
+
+function stopDbWatcher(): void {
+  for (const f of dbWatchedFiles) {
+    fs.unwatchFile(f);
+  }
+  dbWatchedFiles = [];
+}
 
 const MIN_SUPPORTED_VERSION = '3.20';
 
@@ -27,6 +50,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   sqliteClient = new SqliteClient();
   mcpClient = new McpClient();
+  postgresClient = new PostgresClient();
   dptTreeProvider = new DptTreeProvider(sqliteClient);
 
   // Register tree views
@@ -34,23 +58,28 @@ export async function activate(context: vscode.ExtensionContext) {
   dptTreeView = vscode.window.createTreeView('winccoa-database.dptView', {
     treeDataProvider: dptTreeProvider,
     showCollapseAll: true,
+    canSelectMany: true,
   });
   context.subscriptions.push(dptTreeView);
   log.info('Tree views registered');
 
-  // Register webview panel serializer for config editor
-  log.info('Registering webview panel serializer...');
+  // Register webview panel serializers
+  log.info('Registering webview panel serializers...');
   context.subscriptions.push(
     vscode.window.registerWebviewPanelSerializer('winccoa-database.configEditor', {
-      async deserializeWebviewPanel(webviewPanel: vscode.WebviewPanel) {
-        log.info('Deserializing config editor webview panel');
-        // The panel is already created, but we need to restore the ConfigEditorPanel instance
-        // For now, just dispose it - user will need to reopen
+      async deserializeWebviewPanel(webviewPanel: vscode.WebviewPanel, state: unknown) {
+        log.info(`Deserializing config editor webview panel, state=${JSON.stringify(state)}`);
         webviewPanel.dispose();
       }
-    })
+    }),
+    vscode.window.registerWebviewPanelSerializer('winccoa-database.dptEditor', {
+      async deserializeWebviewPanel(webviewPanel: vscode.WebviewPanel, state: unknown) {
+        log.info(`Deserializing DPT editor webview panel, state=${JSON.stringify(state)}`);
+        webviewPanel.dispose();
+      }
+    }),
   );
-  log.info('Webview panel serializer registered');
+  log.info('Webview panel serializers registered');
 
   // Register commands
   context.subscriptions.push(
@@ -59,11 +88,130 @@ export async function activate(context: vscode.ExtensionContext) {
       dptTreeProvider.refresh();
     }),
     vscode.commands.registerCommand('winccoa-database.selectProject', () => selectProject()),
+    vscode.commands.registerCommand('winccoa-database.openPostgresSettings', () => {
+      vscode.commands.executeCommand('workbench.action.openSettings', 'winccoa-database.postgres');
+    }),
     vscode.commands.registerCommand('winccoa-database.openConfigEditor', (item) => {
       log.info(`Command: openConfigEditor, item=${JSON.stringify(item?.label)}, dpId=${item?.dpId}, elId=${item?.elId}`);
       if (item && item.dpId !== undefined && item.elId !== undefined) {
         openConfigEditor(item.dpId, item.elId, item.label, context.extensionUri);
       }
+    }),
+    vscode.commands.registerCommand('winccoa-database.createDp', async (item) => {
+      log.info(`Command: createDp, dptLabel=${item?.label}`);
+      if (!item?.label) return;
+
+      const typeName = item.label;
+      const dpeName = await vscode.window.showInputBox({
+        prompt: `Enter name for new datapoint of type "${typeName}"`,
+        placeHolder: 'DatapointName',
+        validateInput: (value) => {
+          if (!value || value.trim() === '') return 'Name cannot be empty';
+          if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(value)) return 'Name must start with a letter and contain only letters, digits, and underscores';
+          return undefined;
+        },
+      });
+      if (!dpeName) return;
+
+      if (!mcpClient.isConfigured) {
+        vscode.window.showErrorMessage('MCP server not configured. Cannot create datapoint.');
+        return;
+      }
+
+      const result = await mcpClient.dpCreate(dpeName, typeName);
+      if (result.success) {
+        vscode.window.showInformationMessage(`Datapoint "${dpeName}" created.`);
+        dptTreeProvider.refresh();
+      } else {
+        vscode.window.showErrorMessage(`Failed to create datapoint: ${result.error}`);
+      }
+    }),
+    vscode.commands.registerCommand('winccoa-database.editDpType', (item) => {
+      log.info(`Command: editDpType, dptLabel=${item?.label}`);
+      if (!item?.label || item.dptId === undefined) return;
+      if (!sqliteClient.isOpen) {
+        vscode.window.showWarningMessage('No WinCC OA project connected.');
+        return;
+      }
+      DptEditorPanel.show(sqliteClient, item.dptId, item.label as string, context.extensionUri, mcpClient);
+    }),
+    vscode.commands.registerCommand('winccoa-database.createDpType', () => {
+      log.info('Command: createDpType');
+      DptEditorPanel.showCreate(context.extensionUri, mcpClient);
+    }),
+    vscode.commands.registerCommand('winccoa-database.deleteDpType', async (item) => {
+      log.info(`Command: deleteDpType, dptLabel=${item?.label}`);
+      if (!item?.label) return;
+
+      const typeName = item.label as string;
+      const dps = sqliteClient.getDatapointsByDptId(item.dptId);
+      const dpCount = dps.length;
+
+      const message = dpCount === 0
+        ? `Delete datapoint type "${typeName}"? This cannot be undone.`
+        : `Delete type "${typeName}" and its ${dpCount} datapoint(s)? This cannot be undone.`;
+
+      const confirmLabel = dpCount === 0
+        ? 'Delete'
+        : `Delete Type and ${dpCount} Datapoint(s)`;
+
+      const confirm = await vscode.window.showWarningMessage(message, { modal: true }, confirmLabel);
+      if (confirm !== confirmLabel) return;
+
+      if (!mcpClient.isConfigured) {
+        vscode.window.showErrorMessage('MCP server not configured. Cannot delete datapoint type.');
+        return;
+      }
+
+      const result = await mcpClient.dpTypeDelete(typeName);
+      if (result.success) {
+        vscode.window.showInformationMessage(`Datapoint type "${typeName}" deleted.`);
+        dptTreeProvider.refresh();
+      } else {
+        vscode.window.showErrorMessage(`Failed to delete datapoint type: ${result.error}`);
+      }
+    }),
+    vscode.commands.registerCommand('winccoa-database.deleteDp', async (item, selectedItems?: any[]) => {
+      log.info(`Command: deleteDp, item=${item?.label}, selectedCount=${selectedItems?.length ?? 1}`);
+      if (!item?.label) return;
+
+      const items = selectedItems && selectedItems.length > 0 ? selectedItems : [item];
+      const names = items.map((i: any) => i.label as string).filter(Boolean);
+      if (names.length === 0) return;
+
+      const message = names.length === 1
+        ? `Delete datapoint "${names[0]}"? This cannot be undone.`
+        : `Delete ${names.length} datapoints? This cannot be undone.\n\n${names.join(', ')}`;
+
+      const confirm = await vscode.window.showWarningMessage(
+        message,
+        { modal: true },
+        'Delete',
+      );
+      if (confirm !== 'Delete') return;
+
+      if (!mcpClient.isConfigured) {
+        vscode.window.showErrorMessage('MCP server not configured. Cannot delete datapoints.');
+        return;
+      }
+
+      const errors: string[] = [];
+      for (const name of names) {
+        const result = await mcpClient.dpDelete(name);
+        if (!result.success) {
+          errors.push(`${name}: ${result.error}`);
+        }
+      }
+
+      if (errors.length === 0) {
+        const msg = names.length === 1
+          ? `Datapoint "${names[0]}" deleted.`
+          : `${names.length} datapoints deleted.`;
+        vscode.window.showInformationMessage(msg);
+      } else {
+        vscode.window.showErrorMessage(`Failed to delete: ${errors.join('; ')}`);
+      }
+      dptTreeProvider.refresh();
     }),
   );
   log.info('Commands registered');
@@ -76,6 +224,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {
   log.info('WinCC OA Database deactivating');
+  stopDbWatcher();
   sqliteClient?.close();
 }
 
@@ -209,6 +358,7 @@ async function initProjectConnection(context: vscode.ExtensionContext): Promise<
 }
 
 function disconnectProject(message?: string): void {
+  stopDbWatcher();
   sqliteClient.close();
   dptTreeView.message = message;
   dptTreeProvider.refresh();
@@ -268,6 +418,24 @@ function connectToProject(projectPath: string, version?: string): void {
     dptTreeView.message = undefined;
     dptTreeProvider.refresh();
     log.info('Tree provider refreshed');
+
+    // Poll ident.sqlite and its WAL file for changes via stat() — reliable across all
+    // write mechanisms including WinCC OA system services (fs.watch misses these on Windows)
+    stopDbWatcher();
+    const watchOptions = { persistent: false, interval: 2000 };
+    const filesToWatch = [
+      path.join(sqliteDir, 'ident.sqlite'),
+      path.join(sqliteDir, 'ident.sqlite-wal'),
+    ];
+    for (const f of filesToWatch) {
+      fs.watchFile(f, watchOptions, (curr, prev) => {
+        if (curr.mtime > prev.mtime || curr.size !== prev.size) {
+          scheduleDebouncedRefresh(path.basename(f), curr, prev);
+        }
+      });
+    }
+    dbWatchedFiles = filesToWatch;
+    log.info(`Polling for SQLite changes (2s interval): ${filesToWatch.join(', ')}`);
 
     // Configure MCP client for value setting
     const mcpConfigured = mcpClient.configure(projectPath);
@@ -338,5 +506,5 @@ function openConfigEditor(dpId: number, elId: number, label: string, extensionUr
     return;
   }
 
-  ConfigEditorPanel.show(sqliteClient, dpId, elId, label, extensionUri, mcpClient);
+  ConfigEditorPanel.show(sqliteClient, dpId, elId, label, extensionUri, mcpClient, postgresClient);
 }
