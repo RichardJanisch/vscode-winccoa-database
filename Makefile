@@ -1,5 +1,5 @@
 .PHONY: all clean install build package test test-local test-unit lint \
-       quick watch rebuild prebuilds help
+       quick dev watch rebuild prebuilds help
 
 # ── Variables ─────────────────────────────────────────────────────────
 BIN_DIR       := bin
@@ -13,6 +13,7 @@ VSCE          := npx @vscode/vsce
 PLATFORM      := $(shell node -p "process.platform")
 ARCH          := $(shell node -p "process.arch")
 NODE_ABI      := $(shell node -p "process.versions.modules")
+NODE_GYP      := npx node-gyp
 
 # Test workspace configuration
 TEST_WORKSPACE ?= .
@@ -54,7 +55,7 @@ prebuilds: prebuild-node prebuild-electron
 
 prebuild-node:
 	@echo "Rebuilding better-sqlite3 for Node.js (ABI $(NODE_ABI))..."
-	@cd node_modules/better-sqlite3 && node-gyp rebuild --release
+	@cd node_modules/better-sqlite3 && $(NODE_GYP) rebuild --release
 	@echo "Collecting Node.js prebuild (ABI $(NODE_ABI))..."
 	@node scripts/collect-prebuilds.js --node
 
@@ -92,6 +93,8 @@ test-local:
 		$(EXT_ID) $(CODE_BIN) $(TEST_WORKSPACE)
 
 # ── Dev shortcuts ─────────────────────────────────────────────────────
+dev: build package
+
 quick: build prebuilds package
 
 watch:
@@ -121,6 +124,7 @@ help:
 	@echo "  prebuilds        Collect native binaries for Node + Electron"
 	@echo "  package          Create universal .vsix in bin/"
 	@echo "  package-target   Create platform-specific .vsix in bin/"
+	@echo "  dev              Build + package (TS only, no native rebuild)"
 	@echo "  quick            Build + prebuilds + package (no clean/install)"
 	@echo ""
 	@echo "Quality:"
