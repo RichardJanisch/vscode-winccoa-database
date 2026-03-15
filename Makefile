@@ -53,6 +53,8 @@ prebuilds: prebuild-node prebuild-electron
 	@ls -1 $(PREBUILDS_DIR)/$(PLATFORM)-$(ARCH)/
 
 prebuild-node:
+	@echo "Rebuilding better-sqlite3 for Node.js (ABI $(NODE_ABI))..."
+	@cd node_modules/better-sqlite3 && node-gyp rebuild --release
 	@echo "Collecting Node.js prebuild (ABI $(NODE_ABI))..."
 	@node scripts/collect-prebuilds.js --node
 
