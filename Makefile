@@ -1,108 +1,140 @@
-.PHONY: all clean install build package test-local test
+.PHONY: all clean install build package test test-local test-unit lint \
+       quick watch rebuild prebuilds help
 
-# Variables
-BIN_DIR := bin
+# ── Variables ─────────────────────────────────────────────────────────
+BIN_DIR       := bin
+PREBUILDS_DIR := prebuilds
 EXTENSION_NAME := vscode-winccoa-database
-VERSION := $(shell node -p "require('./package.json').version")
+VERSION       := $(shell node -p "require('./package.json').version")
 EXT_PUBLISHER := winccoa-tools-pack
-EXT_NAME := vscode-winccoa-database
-EXT_ID := $(EXT_PUBLISHER).$(EXT_NAME)
-NPM := npm
-VSCE := npx vsce
+EXT_ID        := $(EXT_PUBLISHER).$(EXTENSION_NAME)
+NPM           := npm
+VSCE          := npx @vscode/vsce
+PLATFORM      := $(shell node -p "process.platform")
+ARCH          := $(shell node -p "process.arch")
+NODE_ABI      := $(shell node -p "process.versions.modules")
 
 # Test workspace configuration
-# On Linux: set TEST_WORKSPACE to your WinCC OA project directory
 TEST_WORKSPACE ?= .
-CODE_BIN ?= code
-FORCE_CLOSE_VSCODE ?= no
-SKIP_UNINSTALL ?= yes
-CLOSE_OLD_WINDOW ?= no
+CODE_BIN       ?= code
 
-# Local build counter file
-LOCAL_COUNTER_FILE := $(BIN_DIR)/.local_build_counter
+# ── Default ───────────────────────────────────────────────────────────
+all: clean install build prebuilds package
 
-# OS Detection
-ifeq ($(OS),Windows_NT)
-    DETECTED_OS := Windows
-    RM := del /Q /F
-    RMDIR := rmdir /S /Q
-    MKDIR := mkdir
-    KILL_CODE := taskkill /IM Code.exe /F 2>nul || echo "No VS Code process found"
-else
-    DETECTED_OS := $(shell uname -s)
-    RM := rm -f
-    RMDIR := rm -rf
-    MKDIR := mkdir -p
-    KILL_CODE := pkill -f "$(CODE_BIN)" 2>/dev/null || echo "No VS Code process found"
-endif
-
-# Default target
-all: clean install build package
-
-# Clean build artifacts
+# ── Clean ─────────────────────────────────────────────────────────────
 clean:
 	@echo "Cleaning build artifacts..."
-	@rm -rf out dist node_modules
-	@rm -rf $(BIN_DIR)
+	@rm -rf out dist $(BIN_DIR) $(PREBUILDS_DIR)
 	@echo "Clean complete."
 
-# Install dependencies
+clean-all: clean
+	@echo "Removing node_modules..."
+	@rm -rf node_modules
+	@echo "Clean-all complete."
+
+# ── Install ───────────────────────────────────────────────────────────
 install:
 	@echo "Installing dependencies..."
 	@$(NPM) install
 	@echo "Dependencies installed."
 
-# Build TypeScript sources
+# ── Build ─────────────────────────────────────────────────────────────
 build:
 	@echo "Building extension..."
 	@$(NPM) run compile
 	@echo "Build complete."
 
-# Run tests
-test:
-	@echo "Running tests..."
-	@$(NPM) test
-	@echo "Tests complete."
+# ── Native prebuilds ─────────────────────────────────────────────────
+# Collects better-sqlite3 binaries for both Node.js and Electron so the
+# extension works in local VS Code (Electron) AND Remote SSH (Node.js).
 
-# Package extension into .vsix file (production release)
+prebuilds: prebuild-node prebuild-electron
+	@echo "Prebuilds collected in $(PREBUILDS_DIR)/$(PLATFORM)-$(ARCH)/"
+	@ls -1 $(PREBUILDS_DIR)/$(PLATFORM)-$(ARCH)/
+
+prebuild-node:
+	@echo "Collecting Node.js prebuild (ABI $(NODE_ABI))..."
+	@node scripts/collect-prebuilds.js --node
+
+prebuild-electron:
+	@echo "Rebuilding for Electron..."
+	@$(NPM) run rebuild
+	@echo "Collecting Electron prebuild..."
+	@node scripts/collect-prebuilds.js --electron
+
+# ── Package ───────────────────────────────────────────────────────────
 package:
-	@echo "Packaging production release..."
-	@-$(MKDIR) $(BIN_DIR) 2>/dev/null || true
-	@echo "Updating version badge in README.md..."
-	@node -e "const fs=require('fs'); let c=fs.readFileSync('README.md','utf8'); c=c.replace(/!\[Version\]\(https:\/\/img\.shields\.io\/badge\/version-[^)]*\)/,'![Version](https://img.shields.io/badge/version-$(VERSION)-blue.svg)'); fs.writeFileSync('README.md',c);"
+	@echo "Packaging VSIX..."
+	@mkdir -p $(BIN_DIR)
 	@$(VSCE) package --out $(BIN_DIR)/$(EXTENSION_NAME)-$(VERSION).vsix
-	@echo "Extension packaged to $(BIN_DIR)/$(EXTENSION_NAME)-$(VERSION).vsix"
+	@echo "Packaged: $(BIN_DIR)/$(EXTENSION_NAME)-$(VERSION).vsix"
 
-# Quick build without cleaning
-quick: build package
+package-target:
+	@echo "Packaging platform-specific VSIX ($(PLATFORM)-$(ARCH))..."
+	@mkdir -p $(BIN_DIR)
+	@$(VSCE) package --target $(PLATFORM)-$(ARCH) \
+		--out $(BIN_DIR)/$(EXTENSION_NAME)-$(VERSION)-$(PLATFORM)-$(ARCH).vsix
+	@echo "Packaged: $(BIN_DIR)/$(EXTENSION_NAME)-$(VERSION)-$(PLATFORM)-$(ARCH).vsix"
 
-# Development watch mode
+# ── Lint & Test ───────────────────────────────────────────────────────
+lint:
+	@$(NPM) run lint
+
+test: test-unit
+
+test-unit:
+	@$(NPM) run test:unit
+
+test-local:
+	@node scripts/test-local.js $(BIN_DIR) $(EXTENSION_NAME) $(VERSION) \
+		$(EXT_ID) $(CODE_BIN) $(TEST_WORKSPACE)
+
+# ── Dev shortcuts ─────────────────────────────────────────────────────
+quick: build prebuilds package
+
 watch:
 	@$(NPM) run watch
 
-# Rebuild (clean + install + build)
-rebuild: clean install build
+rebuild: clean-all install build
 
-# Local test target - Build, package with local stamp, replace extension, restart VS Code
-test-local:
-	@node scripts/test-local.js $(BIN_DIR) $(EXTENSION_NAME) $(VERSION) $(EXT_ID) $(CODE_BIN) $(TEST_WORKSPACE)
+# ── Info ──────────────────────────────────────────────────────────────
+info:
+	@echo "Extension:  $(EXT_ID) v$(VERSION)"
+	@echo "Platform:   $(PLATFORM)-$(ARCH)"
+	@echo "Node ABI:   $(NODE_ABI)"
+	@echo "Prebuilds:  $(PREBUILDS_DIR)/$(PLATFORM)-$(ARCH)/"
+	@test -d "$(PREBUILDS_DIR)/$(PLATFORM)-$(ARCH)" \
+		&& ls -1 $(PREBUILDS_DIR)/$(PLATFORM)-$(ARCH)/ \
+		|| echo "  (none — run 'make prebuilds')"
 
-# Help target
+# ── Help ──────────────────────────────────────────────────────────────
 help:
-	@echo "Available targets:"
-	@echo "  all          - Clean, install, build and package (default)"
-	@echo "  clean        - Remove build artifacts and node_modules"
-	@echo "  install      - Install npm dependencies"
-	@echo "  build        - Compile TypeScript sources"
-	@echo "  test         - Run tests"
-	@echo "  package      - Create .vsix package in bin/ directory (with version badge update)"
-	@echo "  quick        - Build and package without cleaning"
-	@echo "  watch        - Watch and recompile extension on changes"
-	@echo "  rebuild      - Clean, install and build"
-	@echo "  test-local   - Build, package with local stamp, install into running VS Code"
-	@echo "                 Use: TEST_WORKSPACE=/path/to/winccoa-project make test-local"
-	@echo "  help         - Show this help message"
 	@echo ""
-	@echo "Configuration:"
-	@echo "  TEST_WORKSPACE        - Path to test workspace (default: .)"
-	@echo "  CODE_BIN              - VS Code binary (default: code, use 'code-insiders' for Insiders)"
+	@echo "Usage: make <target>"
+	@echo ""
+	@echo "Build & Package:"
+	@echo "  all              Clean, install, build, prebuilds, package (default)"
+	@echo "  install          Install npm dependencies"
+	@echo "  build            Compile TypeScript via webpack"
+	@echo "  prebuilds        Collect native binaries for Node + Electron"
+	@echo "  package          Create universal .vsix in bin/"
+	@echo "  package-target   Create platform-specific .vsix in bin/"
+	@echo "  quick            Build + prebuilds + package (no clean/install)"
+	@echo ""
+	@echo "Quality:"
+	@echo "  lint             Run ESLint"
+	@echo "  test             Run unit tests (alias for test-unit)"
+	@echo "  test-unit        Run unit tests"
+	@echo "  test-local       Build, install into VS Code, open workspace"
+	@echo ""
+	@echo "Housekeeping:"
+	@echo "  clean            Remove dist/, bin/, prebuilds/"
+	@echo "  clean-all        clean + remove node_modules/"
+	@echo "  rebuild          clean-all + install + build"
+	@echo "  watch            Webpack watch mode"
+	@echo "  info             Show current build environment"
+	@echo ""
+	@echo "Options:"
+	@echo "  TEST_WORKSPACE   Path to WinCC OA project  (default: .)"
+	@echo "  CODE_BIN         VS Code binary             (default: code)"
+	@echo ""
