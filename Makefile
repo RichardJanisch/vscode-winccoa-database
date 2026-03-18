@@ -48,16 +48,28 @@ build:
 # ── Native prebuilds ─────────────────────────────────────────────────
 # Collects better-sqlite3 binaries for both Node.js and Electron so the
 # extension works in local VS Code (Electron) AND Remote SSH (Node.js).
+#
+# On Linux the Node.js prebuilds are downloaded from the better-sqlite3
+# GitHub releases (built on old glibc ≤ 2.29, portable across distros).
+# On other platforms they are compiled locally via node-gyp.
+
+# Node versions whose prebuilds we ship (VS Code Server may use either)
+NODE_TARGETS ?= 20.0.0 22.0.0
 
 prebuilds: prebuild-node prebuild-electron
 	@echo "Prebuilds collected in $(PREBUILDS_DIR)/$(PLATFORM)-$(ARCH)/"
 	@ls -1 $(PREBUILDS_DIR)/$(PLATFORM)-$(ARCH)/
 
 prebuild-node:
+ifeq ($(PLATFORM),linux)
+	@echo "Downloading portable Node.js prebuilds from GitHub releases..."
+	@node scripts/collect-prebuilds.js --download-node $(NODE_TARGETS)
+else
 	@echo "Rebuilding better-sqlite3 for Node.js (ABI $(NODE_ABI))..."
 	@cd node_modules/better-sqlite3 && $(NODE_GYP) rebuild --release
 	@echo "Collecting Node.js prebuild (ABI $(NODE_ABI))..."
 	@node scripts/collect-prebuilds.js --node
+endif
 
 prebuild-electron:
 	@echo "Rebuilding for Electron..."
