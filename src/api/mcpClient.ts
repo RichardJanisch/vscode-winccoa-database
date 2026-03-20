@@ -2,6 +2,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 
+export interface HistoryPoint {
+  ms: number;                    // milliseconds since epoch
+  value: number | string | null;
+}
+
 // Maps OaElementType numeric codes → MCP server's elementTypeName strings
 const OA_TYPE_TO_MCP_NAME: Record<number, string> = {
   1:  'Struct',
@@ -302,6 +307,38 @@ export class McpClient {
     return this.callMcpTool('dp_types.dp_type_change', {
       structure: arraysToStructure(typeName, elements, types),
     });
+  }
+
+  /** Query historical archive data for a DPE via MCP (wraps dpGetPeriod) */
+  async dpGetPeriod(
+    dpeName: string,
+    startTime: string,
+    endTime: string,
+    count = 500,
+  ): Promise<{ success: boolean; error?: string; points?: HistoryPoint[] }> {
+    const result = await this.callMcpTool('archive.archive_get', {
+      dpeNames: [dpeName],
+      startTime,
+      endTime,
+      count,
+    });
+
+    if (!result.success) {
+      return { success: false, error: result.error };
+    }
+
+    const entries = result.data as { dpeName: string; times: string[]; values: unknown[] }[];
+    const entry = entries?.[0];
+    if (!entry) {
+      return { success: true, points: [] };
+    }
+
+    const points: HistoryPoint[] = entry.times.map((t, i) => ({
+      ms: new Date(t).getTime(),
+      value: entry.values[i] as number | string | null,
+    }));
+
+    return { success: true, points };
   }
 }
 
