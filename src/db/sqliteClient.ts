@@ -1,6 +1,7 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import Database, { type Database as DatabaseType } from 'better-sqlite3';
+import { resolveNativeBinding } from './nativeBinding';
 import type { DpType } from '../models/dpType';
 import type { DpElement } from '../models/dpElement';
 import type { Datapoint } from '../models/datapoint';
@@ -43,11 +44,17 @@ export class SqliteClient {
     const lastAlertPath = path.join(sqliteDir, 'last_alert.sqlite');
 
     // Open databases in readonly mode — better-sqlite3 handles WAL files automatically
-    this.identDb = new Database(identPath, { readonly: true });
-    this.configDb = new Database(configPath, { readonly: true });
-    this.lastValueDb = new Database(lastValuePath, { readonly: true });
+    const nativeBinding = resolveNativeBinding();
+    const dbOptions: { readonly: true; nativeBinding?: string } = { readonly: true };
+    if (nativeBinding) {
+      dbOptions.nativeBinding = nativeBinding;
+    }
+
+    this.identDb = new Database(identPath, dbOptions);
+    this.configDb = new Database(configPath, dbOptions);
+    this.lastValueDb = new Database(lastValuePath, dbOptions);
     if (fs.existsSync(lastAlertPath)) {
-      this.lastAlertDb = new Database(lastAlertPath, { readonly: true });
+      this.lastAlertDb = new Database(lastAlertPath, dbOptions);
     }
   }
 

@@ -26,6 +26,9 @@ node_modules/**
 !node_modules/bindings/**
 !node_modules/file-uri-to-path/**
 
+# Prebuilt native binaries (multiple ABI support)
+!prebuilds/**
+
 # Exceptions for assets
 !resources/**
 !images/**

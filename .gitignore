@@ -13,6 +13,7 @@ dist-esm/
 out/
 bin/
 !bin/*.vsix
+prebuilds/
 
 # IDE
 #.vscode/
