@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import type { SqliteClient } from '../db/sqliteClient';
 import type { McpClient } from '../api/mcpClient';
-import type { PostgresClient } from '../db/postgresClient';
 import type { DpeConfigs } from '../models/configs';
 import { OaElementType, getTypeName, isLeafType } from '../models/types';
 import { getAlarmState, getAlarmColorName, resolveColor, getBlinkClass, getAlarmStateLabel } from '../models/alarmColors';
@@ -24,7 +23,6 @@ export class ConfigEditorPanel {
     panel: vscode.WebviewPanel,
     private db: SqliteClient,
     private mcpClient: McpClient | null,
-    private postgresClient: PostgresClient | null,
   ) {
     this.panel = panel;
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
@@ -44,13 +42,11 @@ export class ConfigEditorPanel {
     label: string,
     extensionUri: vscode.Uri,
     mcpClient: McpClient | null = null,
-    postgresClient: PostgresClient | null = null,
   ): void {
     const column = vscode.ViewColumn.One;
 
     if (ConfigEditorPanel.currentPanel) {
       ConfigEditorPanel.currentPanel.mcpClient = mcpClient;
-      ConfigEditorPanel.currentPanel.postgresClient = postgresClient;
       ConfigEditorPanel.currentPanel.panel.reveal(column);
       ConfigEditorPanel.currentPanel.update(db, dpId, elId, label);
       return;
@@ -63,7 +59,7 @@ export class ConfigEditorPanel {
       { enableScripts: true, retainContextWhenHidden: true },
     );
 
-    ConfigEditorPanel.currentPanel = new ConfigEditorPanel(panel, db, mcpClient, postgresClient);
+    ConfigEditorPanel.currentPanel = new ConfigEditorPanel(panel, db, mcpClient);
     ConfigEditorPanel.currentPanel.update(db, dpId, elId, label);
   }
 
@@ -76,10 +72,10 @@ export class ConfigEditorPanel {
   }
 
   private async loadHistory(timespanMs: number): Promise<void> {
-    if (!this.postgresClient || !this.postgresClient.isConfigured) {
+    if (!this.mcpClient || !this.mcpClient.isConfigured) {
       this.panel.webview.postMessage({
         command: 'historyError',
-        error: 'PostgreSQL not configured. Set winccoa-database.postgres.password in settings.',
+        error: 'MCP server not configured. Ensure the WinCC OA MCP server is running.',
       });
       return;
     }
@@ -92,17 +88,15 @@ export class ConfigEditorPanel {
 
     const dpePath = this.db.getElementPath(this.currentDpId, this.currentElId);
     const fullPath = dpePath ? `${dpName}.${dpePath}` : dpName;
-    const systemName = this.db.getSystemName() ?? 'System1';
-    const elementName = `${systemName}:${fullPath}`;
 
-    const toMs = Date.now();
-    const fromMs = toMs - timespanMs;
+    const endTime = new Date().toISOString();
+    const startTime = new Date(Date.now() - timespanMs).toISOString();
 
-    try {
-      const points = await this.postgresClient.getHistory(elementName, fromMs, toMs);
-      this.panel.webview.postMessage({ command: 'historyData', points });
-    } catch (err) {
-      this.panel.webview.postMessage({ command: 'historyError', error: String(err) });
+    const result = await this.mcpClient.dpGetPeriod(fullPath, startTime, endTime);
+    if (result.success) {
+      this.panel.webview.postMessage({ command: 'historyData', points: result.points ?? [] });
+    } else {
+      this.panel.webview.postMessage({ command: 'historyError', error: result.error ?? 'Unknown error' });
     }
   }
 
