@@ -68,10 +68,15 @@ prebuild-node:
 	@node scripts/collect-prebuilds.js --platform $(PLATFORM) --arch $(ARCH) --download-node $(NODE_TARGETS)
 
 prebuild-electron:
-	@echo "Rebuilding for Electron (arch=$(ELECTRON_ARCH))..."
-	@npx electron-rebuild -v 39.3.0 --arch $(ELECTRON_ARCH)
-	@echo "Collecting Electron prebuild..."
-	@node scripts/collect-prebuilds.js --platform $(PLATFORM) --arch $(ELECTRON_ARCH) --electron
+	@NODE_MAJOR=$$(node -p "process.versions.node.split('.')[0]"); \
+	if [ "$$NODE_MAJOR" -lt 22 ]; then \
+		echo "Skipping Electron prebuild: @electron/rebuild requires Node >= 22 (have $$(node --version))"; \
+	else \
+		echo "Rebuilding for Electron (arch=$(ELECTRON_ARCH))..." && \
+		npx electron-rebuild -v 39.3.0 --arch $(ELECTRON_ARCH) && \
+		echo "Collecting Electron prebuild..." && \
+		node scripts/collect-prebuilds.js --platform $(PLATFORM) --arch $(ELECTRON_ARCH) --electron; \
+	fi
 
 # ── Package ───────────────────────────────────────────────────────────
 package:
