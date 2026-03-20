@@ -7,7 +7,6 @@ import { DatabaseTreeItem } from './providers/dptTreeProvider';
 import { ConfigEditorPanel } from './providers/configEditorProvider';
 import { DptEditorPanel } from './providers/dptEditorProvider';
 import { McpClient } from './api/mcpClient';
-import { PostgresClient } from './db/postgresClient';
 
 // ---------------------------------------------------------------------------
 
@@ -15,7 +14,6 @@ let sqliteClient: SqliteClient;
 let dptTreeProvider: DptTreeProvider;
 let dptTreeView: vscode.TreeView<DatabaseTreeItem>;
 let mcpClient: McpClient;
-let postgresClient: PostgresClient;
 let dbWatchedFiles: string[] = [];
 let refreshDebounceTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -50,7 +48,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
   sqliteClient = new SqliteClient();
   mcpClient = new McpClient();
-  postgresClient = new PostgresClient();
   dptTreeProvider = new DptTreeProvider(sqliteClient);
 
   // Register tree views
@@ -88,9 +85,6 @@ export async function activate(context: vscode.ExtensionContext) {
       dptTreeProvider.refresh();
     }),
     vscode.commands.registerCommand('winccoa-database.selectProject', () => selectProject()),
-    vscode.commands.registerCommand('winccoa-database.openPostgresSettings', () => {
-      vscode.commands.executeCommand('workbench.action.openSettings', 'winccoa-database.postgres');
-    }),
     vscode.commands.registerCommand('winccoa-database.openConfigEditor', (item) => {
       log.info(`Command: openConfigEditor, item=${JSON.stringify(item?.label)}, dpId=${item?.dpId}, elId=${item?.elId}`);
       if (item && item.dpId !== undefined && item.elId !== undefined) {
@@ -506,5 +500,5 @@ function openConfigEditor(dpId: number, elId: number, label: string, extensionUr
     return;
   }
 
-  ConfigEditorPanel.show(sqliteClient, dpId, elId, label, extensionUri, mcpClient, postgresClient);
+  ConfigEditorPanel.show(sqliteClient, dpId, elId, label, extensionUri, mcpClient);
 }
