@@ -18,11 +18,27 @@ const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
 const SOURCE = path.join(ROOT, 'node_modules', 'better-sqlite3', 'build', 'Release', 'better_sqlite3.node');
-const PREBUILDS_DIR = path.join(ROOT, 'prebuilds', `${process.platform}-${process.arch}`);
 
-const mode = process.argv[2];
+// Parse --platform and --arch flags (defaults to current host)
+let targetPlatform = process.platform;
+let targetArch = process.arch;
+const rawArgs = process.argv.slice(2);
+const args = [];
+for (let i = 0; i < rawArgs.length; i++) {
+  if (rawArgs[i] === '--platform' && i + 1 < rawArgs.length) {
+    targetPlatform = rawArgs[++i];
+  } else if (rawArgs[i] === '--arch' && i + 1 < rawArgs.length) {
+    targetArch = rawArgs[++i];
+  } else {
+    args.push(rawArgs[i]);
+  }
+}
+
+const PREBUILDS_DIR = path.join(ROOT, 'prebuilds', `${targetPlatform}-${targetArch}`);
+
+const mode = args[0];
 if (mode !== '--node' && mode !== '--electron' && mode !== '--download-node') {
-  console.error('Usage: node scripts/collect-prebuilds.js --node|--electron|--download-node <versions...>');
+  console.error('Usage: node scripts/collect-prebuilds.js [--platform <p>] [--arch <a>] --node|--electron|--download-node <versions...>');
   process.exit(1);
 }
 
@@ -30,7 +46,7 @@ fs.mkdirSync(PREBUILDS_DIR, { recursive: true });
 
 // ── Download prebuilds from GitHub releases ────────────────────────
 if (mode === '--download-node') {
-  const versions = process.argv.slice(3);
+  const versions = args.slice(1);
   if (versions.length === 0) {
     console.error('Provide at least one Node target version (e.g. 20.0.0 22.0.0)');
     process.exit(1);
@@ -55,8 +71,8 @@ if (mode === '--download-node') {
         path.join(ROOT, 'node_modules', '.bin', 'prebuild-install'),
         '--runtime', 'node',
         '--target', ver,
-        '--arch', process.arch,
-        '--platform', process.platform,
+        '--arch', targetArch,
+        '--platform', targetPlatform,
         '--force',
       ],
       { cwd, stdio: 'inherit' }

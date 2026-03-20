@@ -56,26 +56,22 @@ build:
 # Node versions whose prebuilds we ship (VS Code Server may use either)
 NODE_TARGETS ?= 20.0.0 22.0.0
 
+# Electron cross-compilation arch (defaults to host ARCH)
+ELECTRON_ARCH ?= $(ARCH)
+
 prebuilds: prebuild-node prebuild-electron
 	@echo "Prebuilds collected in $(PREBUILDS_DIR)/$(PLATFORM)-$(ARCH)/"
 	@ls -1 $(PREBUILDS_DIR)/$(PLATFORM)-$(ARCH)/
 
 prebuild-node:
-ifeq ($(PLATFORM),linux)
 	@echo "Downloading portable Node.js prebuilds from GitHub releases..."
-	@node scripts/collect-prebuilds.js --download-node $(NODE_TARGETS)
-else
-	@echo "Rebuilding better-sqlite3 for Node.js (ABI $(NODE_ABI))..."
-	@cd node_modules/better-sqlite3 && $(NODE_GYP) rebuild --release
-	@echo "Collecting Node.js prebuild (ABI $(NODE_ABI))..."
-	@node scripts/collect-prebuilds.js --node
-endif
+	@node scripts/collect-prebuilds.js --platform $(PLATFORM) --arch $(ARCH) --download-node $(NODE_TARGETS)
 
 prebuild-electron:
-	@echo "Rebuilding for Electron..."
-	@$(NPM) run rebuild
+	@echo "Rebuilding for Electron (arch=$(ELECTRON_ARCH))..."
+	@npx electron-rebuild -v 39.3.0 --arch $(ELECTRON_ARCH)
 	@echo "Collecting Electron prebuild..."
-	@node scripts/collect-prebuilds.js --electron
+	@node scripts/collect-prebuilds.js --platform $(PLATFORM) --arch $(ELECTRON_ARCH) --electron
 
 # ── Package ───────────────────────────────────────────────────────────
 package:
