@@ -256,6 +256,7 @@ export class ConfigEditorPanel {
           <span class="meta-item">el_id: ${elId}</span>
           ${configs.unitAndFormat ? `<span class="badge unit">${esc(configs.unitAndFormat.unit || 'no unit')}</span>` : ''}
           ${configs.displayName ? `<span class="meta-item">Display: ${esc(configs.displayName.text)}</span>` : ''}
+          ${isLeaf ? '<button id="historyToggleBtn" class="history-toggle-btn">History</button>' : ''}
         </div>
       </div>
     `);
@@ -334,6 +335,23 @@ export class ConfigEditorPanel {
     }
     .ts-btn:hover:not(.active) {
       background: var(--vscode-list-hoverBackground);
+    }
+    .history-toggle-btn {
+      padding: 2px 10px;
+      font-size: 0.85em;
+      background: var(--vscode-editor-background);
+      color: var(--vscode-foreground);
+      border: 1px solid var(--vscode-panel-border);
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    .history-toggle-btn:hover {
+      background: var(--vscode-list-hoverBackground);
+    }
+    .history-toggle-btn.active {
+      background: var(--vscode-button-background);
+      color: var(--vscode-button-foreground);
+      border-color: var(--vscode-button-background);
     }
     .view-mode-btn {
       padding: 2px 10px;
@@ -632,6 +650,29 @@ export class ConfigEditorPanel {
         btn.addEventListener('click', trySetValue);
         input.addEventListener('keydown', function(e) { if (e.key === 'Enter') trySetValue(); });
         input.addEventListener('input', function() { input.setCustomValidity(''); });
+      }
+
+      // ── History Toggle ─────────────────────────────────────────
+      const historyToggleBtn = document.getElementById('historyToggleBtn');
+      const historySection   = document.getElementById('historySection');
+      let historyInitialized = false;
+
+      if (historyToggleBtn && historySection) {
+        historyToggleBtn.addEventListener('click', function() {
+          const visible = historySection.style.display !== 'none';
+          historySection.style.display = visible ? 'none' : '';
+          historyToggleBtn.classList.toggle('active', !visible);
+          if (!visible && !historyInitialized) {
+            historyInitialized = true;
+            // Auto-select 1h and load
+            const firstBtn = historySection.querySelector('.ts-btn');
+            if (firstBtn) {
+              firstBtn.classList.add('active');
+              currentSpan = Number(firstBtn.dataset.span);
+              requestHistory();
+            }
+          }
+        });
       }
 
       // ── History ────────────────────────────────────────────────
@@ -1091,7 +1132,7 @@ export class ConfigEditorPanel {
 
   private renderHistorySection(): string {
     return `
-      <div class="section history" id="historySection">
+      <div class="section history" id="historySection" style="display:none">
         <div class="section-header">
           <span>History</span>
           <div class="history-controls">
