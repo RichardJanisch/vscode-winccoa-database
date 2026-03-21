@@ -390,6 +390,27 @@ export class McpClient {
     }
 }
 
+export async function promptMcpSetup(): Promise<void> {
+    const install = 'Install MCP Server';
+    const choice = await vscode.window.showWarningMessage(
+        'MCP server not configured. Write operations are unavailable.',
+        install,
+    );
+    if (choice === install) {
+        const mcpExt = vscode.extensions.getExtension(
+            'winccoa-tools-pack.vscode-winccoa-mcp-server',
+        );
+        if (mcpExt) {
+            await vscode.commands.executeCommand('winccoa.mcp.runSetup');
+        } else {
+            await vscode.commands.executeCommand(
+                'workbench.extensions.installExtension',
+                'winccoa-tools-pack.vscode-winccoa-mcp-server',
+            );
+        }
+    }
+}
+
 function parseEnvFile(filePath: string): Record<string, string> {
     const content = fs.readFileSync(filePath, 'utf8');
     const env: Record<string, string> = {};
