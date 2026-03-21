@@ -42,7 +42,7 @@
                 {
                     "id": "winccoa-database",
                     "title": "WinCC OA Database",
-                    "icon": "resources/icons/database.svg"
+                    "icon": "resources/icons/winccoa-database.svg"
                 }
             ]
         },
