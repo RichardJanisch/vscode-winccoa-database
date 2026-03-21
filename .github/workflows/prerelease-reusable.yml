@@ -12,6 +12,11 @@ on:
         required: false
         default: true
         type: boolean
+      create_release:
+        description: "Create GitHub pre-release and tag (false = upload workflow artifacts only)"
+        required: false
+        default: true
+        type: boolean
     outputs:
       version:
         description: "Computed prerelease version (x.y.z-<shortsha>)"
@@ -29,6 +34,7 @@ concurrency:
 
 jobs:
   versioning:
+    if: ${{ inputs.create_release }}
     uses: winccoa-tools-pack/.github/.github/workflows/versioning-tags-changelog-reusable.yml@main
     with:
       mode: prerelease
@@ -98,6 +104,10 @@ jobs:
         shell: bash
         run: |
           TAG="${{ needs.versioning.outputs.tag }}"
+          if [ -z "$TAG" ]; then
+            SHORT_SHA="${GITHUB_SHA:0:7}"
+            TAG="dev-${SHORT_SHA}"
+          fi
           VERSION="${TAG#v}"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
@@ -113,6 +123,7 @@ jobs:
           retention-days: 14
 
   release:
+    if: ${{ inputs.create_release }}
     needs: [versioning, package]
     runs-on: ubuntu-latest
 
