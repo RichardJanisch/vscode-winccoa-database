@@ -32,7 +32,7 @@ Automatically connects to WinCC OA projects via:
 
 ## Architecture
 
-```
+```text
 VS Code Extension
   |
   |-- sql.js (read-only) -------> ident.sqlite    (DPTs, elements, DPs)
@@ -151,4 +151,6 @@ WinCC OA and Siemens are trademarks of Siemens AG. This is a community project a
 
 ---
 
+<!-- markdownlint-disable MD033 -->
 <div align="center">Made with ❤️ for and by the WinCC OA community</div>
+<!-- markdownlint-enable MD033 -->

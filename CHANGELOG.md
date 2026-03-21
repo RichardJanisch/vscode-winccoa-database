@@ -10,10 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING**: Migrated from better-sqlite3 (native C++ module) to sql.js (WebAssembly)
-    - Extension now works cross-platform (Windows, Linux, macOS) without rebuilding native modules
-    - Single VSIX package works on all operating systems
-    - Simplified installation - no platform-specific builds required
-    - Removed `npm run rebuild` requirement from development workflow
+  - Extension now works cross-platform (Windows, Linux, macOS) without rebuilding native modules
+  - Single VSIX package works on all operating systems
+  - Simplified installation - no platform-specific builds required
+  - Removed `npm run rebuild` requirement from development workflow
 
 ### Removed
 

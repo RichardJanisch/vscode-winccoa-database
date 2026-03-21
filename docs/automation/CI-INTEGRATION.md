@@ -9,13 +9,13 @@ This repository runs a standard Node/TypeScript CI pipeline on GitHub-hosted run
 Workflow: `.github/workflows/ci-cd.yml`
 
 - Triggers:
-    - `push` to `main`, `develop`, and `release/**`
-    - `pull_request` to `main` and `develop`
+  - `push` to `main`, `develop`, and `release/**`
+  - `pull_request` to `main` and `develop`
 - What it does:
-    - `npm ci`
-    - `npm run lint` + `npm run lint:md`
-    - `npm run format:check`
-    - matrix tests via `npm run test:unit`
+  - `npm ci`
+  - `npm run lint` + `npm run lint:md`
+  - `npm run format:check`
+  - matrix tests via `npm run test:unit`
 
 ### Integration Tests - WinCC OA
 
@@ -24,11 +24,11 @@ Integration tests are part of the CI/CD workflow.
 Workflow: `.github/workflows/ci-cd.yml` (job: `Integration Tests - WinCC OA`)
 
 - Triggers:
-    - same triggers as `CI/CD Pipeline`
+  - same triggers as `CI/CD Pipeline`
 - What it does:
-    - pulls a WinCC OA Docker image
-    - runs the repo inside the container
-    - executes `npm run ci:integration` (which runs `npm ci`, `npm run compile`, and `npm run test:integrationt`)
+  - pulls a WinCC OA Docker image
+  - runs the repo inside the container
+  - executes `npm run ci:integration` (which runs `npm ci`, `npm run compile`, and `npm run test:integrationt`)
 
 By default, the integration job is a no-op unless an image is configured.
 

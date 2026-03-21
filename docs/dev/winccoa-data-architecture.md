@@ -13,7 +13,7 @@ WinCC OA uses two database systems for different purposes:
 
 **Key insight**: Both databases are **write-only caches** maintained by WinCC OA managers. External applications cannot write to them to change runtime state. All value changes must go through the **WinCC OA Event Manager**.
 
-```
+```text
                     ┌─────────────────┐
                     │  Event Manager  │  (WCCILevent)
                     └────────┬────────┘
@@ -54,7 +54,7 @@ CREATE TABLE datapoint_type(
 
 Example data:
 
-```
+```text
 dpt_id │ canonical_name
 ───────┼───────────────
    156 │ ExampleDP_Float
@@ -105,9 +105,9 @@ CREATE TABLE datapoint_element(
 | 31   | BIT64     | 64-bit pattern               |
 | 41   | REFERENCE | Reference to another DPT     |
 
-**Example: ExampleDP_DDE (flat structure)**
+#### Example: ExampleDP_DDE (flat structure)
 
-```
+```text
 el_id │ parent │ type   │ name
 ──────┼────────┼────────┼─────────────
     1 │      0 │ STRUCT │ ExampleDP_DDE   (root)
@@ -117,9 +117,9 @@ el_id │ parent │ type   │ name
     5 │      1 │ STRING │ string1
 ```
 
-**Example: PUMP1 (nested structs with reference)**
+#### Example: PUMP1 (nested structs with reference)
 
-```
+```text
 el_id │ parent │ type      │ name
 ──────┼────────┼───────────┼──────────────
     1 │      0 │ STRUCT    │ PUMP1           (root)
@@ -355,7 +355,7 @@ CREATE TABLE last_value(
 
 Example data for `ExampleDP_DDE` (dp_id=417):
 
-```
+```text
 el_id │ value                 │ variable_type │ original_time (ns)
 ──────┼───────────────────────┼───────────────┼─────────────────────
     2 │ 10.0                  │ 458752        │ 1771106887279000000
@@ -434,7 +434,7 @@ dbVersion                               │ 3.0
 
 Defines archive group policies (retention, segmentation, backup).
 
-```
+```text
 group_name       │ retention │ segment_duration │ alert
 ─────────────────┼───────────┼──────────────────┼──────
 System1:EVENT    │ 31 days   │ 1 day            │ false
@@ -547,7 +547,7 @@ The number `N` corresponds to internal segment group identifiers, not user-facin
 
 ### Reading Current Values (Extension → SQLite)
 
-```
+```text
 Extension                SQLite
    │                        │
    ├── getAllDpTypes() ─────→ ident.sqlite: datapoint_type
@@ -561,7 +561,7 @@ Extension                SQLite
 
 ### Writing Values (Extension → MCP → Event Manager → SQLite)
 
-```
+```text
 Extension           MCP HTTP Server      Event Manager     SQLite
    │                     │                    │               │
    ├─ POST /mcp ────────→│                    │               │
@@ -577,7 +577,7 @@ Extension           MCP HTTP Server      Event Manager     SQLite
 
 ### Historical Archiving (Event Manager → PostgreSQL)
 
-```
+```text
 Event Manager        NGA Archiver        PostgreSQL
    │                     │                    │
    ├─ value change ─────→│                    │

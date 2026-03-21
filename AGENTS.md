@@ -40,7 +40,7 @@ The VS Code extension auto-detects the MCP server config from `{projectDir}/java
 
 ## Repository structure
 
-```
+```text
 src/
   extension.ts          # Activation, command registration, project connection logic
   const.ts              # Shared constants
