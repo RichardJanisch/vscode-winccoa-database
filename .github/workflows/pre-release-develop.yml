@@ -24,6 +24,7 @@ jobs:
     with:
       target_branch: ${{ github.event.workflow_run.head_branch || github.ref_name }}
       validate_release_branch: false
+      create_release: false
     secrets: inherit
 
   notify-success:
@@ -34,8 +35,6 @@ jobs:
     steps:
       - name: Success Notification
         run: |
-          echo "🧪 Dev pre-release ${{ needs.pre-release.outputs.tag }} created successfully!"
-          echo "📦 VSIX attached to the GitHub pre-release"
+          echo "📦 Dev VSIX artifacts built successfully!"
           echo "📝 Auto-generated from develop"
-          echo ""
-          echo "🔗 Pre-release URL: https://github.com/${{ github.repository }}/releases/tag/${{ needs.pre-release.outputs.tag }}"
+          echo "🔗 Download from workflow run artifacts"
