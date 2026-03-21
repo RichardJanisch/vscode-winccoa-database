@@ -46,6 +46,7 @@ jobs:
 
   package:
     needs: [versioning]
+    if: ${{ !cancelled() && (needs.versioning.result == 'success' || needs.versioning.result == 'skipped') }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
