@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import type { SqliteClient } from '../db/sqliteClient';
 import type { McpClient } from '../api/mcpClient';
+import { promptMcpSetup } from '../api/mcpClient';
 import { OaElementType } from '../models/types';
 
 interface ChildEntry {
@@ -177,9 +178,7 @@ export class DptEditorPanel {
 
     private async saveDptChange(elements: string[][], types: number[][]): Promise<void> {
         if (!this.mcpClient?.isConfigured) {
-            vscode.window.showWarningMessage(
-                'MCP HTTP server not configured. Ensure the WinCC OA MCP server is running.',
-            );
+            promptMcpSetup();
             return;
         }
         const result = await this.mcpClient.dpTypeChange(this.currentTypeName, elements, types);
@@ -198,9 +197,7 @@ export class DptEditorPanel {
         types: number[][],
     ): Promise<void> {
         if (!this.mcpClient?.isConfigured) {
-            vscode.window.showWarningMessage(
-                'MCP HTTP server not configured. Ensure the WinCC OA MCP server is running.',
-            );
+            promptMcpSetup();
             return;
         }
         const result = await this.mcpClient.dpTypeCreate(typeName, elements, types);
