@@ -3,251 +3,274 @@ import type { SqliteClient } from '../db/sqliteClient';
 import type { McpClient } from '../api/mcpClient';
 import type { DpeConfigs } from '../models/configs';
 import { OaElementType, getTypeName, isLeafType } from '../models/types';
-import { getAlarmState, getAlarmColorName, resolveColor, getBlinkClass, getAlarmStateLabel } from '../models/alarmColors';
+import {
+    getAlarmState,
+    getAlarmColorName,
+    resolveColor,
+    getBlinkClass,
+    getAlarmStateLabel,
+} from '../models/alarmColors';
 
 export class ConfigEditorPanel {
-  public static currentPanel: ConfigEditorPanel | undefined;
-  private static readonly viewType = 'winccoa-database.configEditor';
+    public static currentPanel: ConfigEditorPanel | undefined;
+    private static readonly viewType = 'winccoa-database.configEditor';
 
-  private readonly panel: vscode.WebviewPanel;
-  private disposables: vscode.Disposable[] = [];
+    private readonly panel: vscode.WebviewPanel;
+    private disposables: vscode.Disposable[] = [];
 
-  private currentDpId = 0;
-  private currentElId = 0;
-  private currentLabel = '';
-  private refreshInterval: ReturnType<typeof setInterval> | undefined;
-  private lastKnownSystemTime: string | null | undefined = undefined;
-  private static readonly REFRESH_INTERVAL_MS = 1000;
+    private currentDpId = 0;
+    private currentElId = 0;
+    private currentLabel = '';
+    private refreshInterval: ReturnType<typeof setInterval> | undefined;
+    private lastKnownSystemTime: string | null | undefined = undefined;
+    private static readonly REFRESH_INTERVAL_MS = 1000;
 
-  private constructor(
-    panel: vscode.WebviewPanel,
-    private db: SqliteClient,
-    private mcpClient: McpClient | null,
-  ) {
-    this.panel = panel;
-    this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
+    private constructor(
+        panel: vscode.WebviewPanel,
+        private db: SqliteClient,
+        private mcpClient: McpClient | null,
+    ) {
+        this.panel = panel;
+        this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
 
-    // Handle messages from webview
-    this.panel.webview.onDidReceiveMessage(
-      (msg) => this.handleMessage(msg),
-      null,
-      this.disposables,
-    );
-  }
-
-  public static show(
-    db: SqliteClient,
-    dpId: number,
-    elId: number,
-    label: string,
-    extensionUri: vscode.Uri,
-    mcpClient: McpClient | null = null,
-  ): void {
-    const column = vscode.ViewColumn.One;
-
-    if (ConfigEditorPanel.currentPanel) {
-      ConfigEditorPanel.currentPanel.mcpClient = mcpClient;
-      ConfigEditorPanel.currentPanel.panel.reveal(column);
-      ConfigEditorPanel.currentPanel.update(db, dpId, elId, label);
-      return;
+        // Handle messages from webview
+        this.panel.webview.onDidReceiveMessage(
+            (msg) => this.handleMessage(msg),
+            null,
+            this.disposables,
+        );
     }
 
-    const panel = vscode.window.createWebviewPanel(
-      ConfigEditorPanel.viewType,
-      `Config: ${label}`,
-      column,
-      { enableScripts: true, retainContextWhenHidden: true },
-    );
+    public static show(
+        db: SqliteClient,
+        dpId: number,
+        elId: number,
+        label: string,
+        extensionUri: vscode.Uri,
+        mcpClient: McpClient | null = null,
+    ): void {
+        const column = vscode.ViewColumn.One;
 
-    ConfigEditorPanel.currentPanel = new ConfigEditorPanel(panel, db, mcpClient);
-    ConfigEditorPanel.currentPanel.update(db, dpId, elId, label);
-  }
+        if (ConfigEditorPanel.currentPanel) {
+            ConfigEditorPanel.currentPanel.mcpClient = mcpClient;
+            ConfigEditorPanel.currentPanel.panel.reveal(column);
+            ConfigEditorPanel.currentPanel.update(db, dpId, elId, label);
+            return;
+        }
 
-  private handleMessage(msg: { command: string; value?: string; timespan?: number }): void {
-    if (msg.command === 'setValue' && msg.value !== undefined) {
-      this.setValueViaMcp(msg.value);
-    } else if (msg.command === 'loadHistory' && msg.timespan !== undefined) {
-      this.loadHistory(msg.timespan).catch(() => {});
-    }
-  }
+        const panel = vscode.window.createWebviewPanel(
+            ConfigEditorPanel.viewType,
+            `Config: ${label}`,
+            column,
+            { enableScripts: true, retainContextWhenHidden: true },
+        );
 
-  private async loadHistory(timespanMs: number): Promise<void> {
-    if (!this.mcpClient || !this.mcpClient.isConfigured) {
-      this.panel.webview.postMessage({
-        command: 'historyError',
-        error: 'MCP server not configured. Ensure the WinCC OA MCP server is running.',
-      });
-      return;
-    }
-
-    const dpName = this.db.getDatapointName(this.currentDpId);
-    if (!dpName) {
-      this.panel.webview.postMessage({ command: 'historyError', error: 'Cannot determine datapoint name.' });
-      return;
+        ConfigEditorPanel.currentPanel = new ConfigEditorPanel(panel, db, mcpClient);
+        ConfigEditorPanel.currentPanel.update(db, dpId, elId, label);
     }
 
-    const dpePath = this.db.getElementPath(this.currentDpId, this.currentElId);
-    const fullPath = dpePath ? `${dpName}.${dpePath}` : dpName;
-
-    const endTime = new Date().toISOString();
-    const startTime = new Date(Date.now() - timespanMs).toISOString();
-
-    const result = await this.mcpClient.dpGetPeriod(fullPath, startTime, endTime);
-    if (result.success) {
-      this.panel.webview.postMessage({ command: 'historyData', points: result.points ?? [] });
-    } else {
-      this.panel.webview.postMessage({ command: 'historyError', error: result.error ?? 'Unknown error' });
-    }
-  }
-
-  private async setValueViaMcp(rawValue: string): Promise<void> {
-    if (!this.mcpClient || !this.mcpClient.isConfigured) {
-      vscode.window.showWarningMessage(
-        'Cannot set values: MCP HTTP server not configured. Ensure the WinCC OA MCP server is running.',
-      );
-      return;
+    private handleMessage(msg: { command: string; value?: string; timespan?: number }): void {
+        if (msg.command === 'setValue' && msg.value !== undefined) {
+            this.setValueViaMcp(msg.value);
+        } else if (msg.command === 'loadHistory' && msg.timespan !== undefined) {
+            this.loadHistory(msg.timespan).catch(() => {});
+        }
     }
 
-    // Build the full DPE name (e.g., "ExampleDP_DDE.f1")
-    const dpName = this.db.getDatapointName(this.currentDpId);
-    if (!dpName) {
-      vscode.window.showErrorMessage('Cannot determine datapoint name.');
-      return;
+    private async loadHistory(timespanMs: number): Promise<void> {
+        if (!this.mcpClient || !this.mcpClient.isConfigured) {
+            this.panel.webview.postMessage({
+                command: 'historyError',
+                error: 'MCP server not configured. Ensure the WinCC OA MCP server is running.',
+            });
+            return;
+        }
+
+        const dpName = this.db.getDatapointName(this.currentDpId);
+        if (!dpName) {
+            this.panel.webview.postMessage({
+                command: 'historyError',
+                error: 'Cannot determine datapoint name.',
+            });
+            return;
+        }
+
+        const dpePath = this.db.getElementPath(this.currentDpId, this.currentElId);
+        const fullPath = dpePath ? `${dpName}.${dpePath}` : dpName;
+
+        const endTime = new Date().toISOString();
+        const startTime = new Date(Date.now() - timespanMs).toISOString();
+
+        const result = await this.mcpClient.dpGetPeriod(fullPath, startTime, endTime);
+        if (result.success) {
+            this.panel.webview.postMessage({ command: 'historyData', points: result.points ?? [] });
+        } else {
+            this.panel.webview.postMessage({
+                command: 'historyError',
+                error: result.error ?? 'Unknown error',
+            });
+        }
     }
 
-    const element = this.db.getElementByIds(this.currentDpId, this.currentElId);
-    if (!element) {
-      vscode.window.showErrorMessage('Cannot determine element path.');
-      return;
+    private async setValueViaMcp(rawValue: string): Promise<void> {
+        if (!this.mcpClient || !this.mcpClient.isConfigured) {
+            vscode.window.showWarningMessage(
+                'Cannot set values: MCP HTTP server not configured. Ensure the WinCC OA MCP server is running.',
+            );
+            return;
+        }
+
+        // Build the full DPE name (e.g., "ExampleDP_DDE.f1")
+        const dpName = this.db.getDatapointName(this.currentDpId);
+        if (!dpName) {
+            vscode.window.showErrorMessage('Cannot determine datapoint name.');
+            return;
+        }
+
+        const element = this.db.getElementByIds(this.currentDpId, this.currentElId);
+        if (!element) {
+            vscode.window.showErrorMessage('Cannot determine element path.');
+            return;
+        }
+
+        // Build the full element path from the element tree
+        const dpePath = this.db.getElementPath(this.currentDpId, this.currentElId);
+        const fullDpe = dpePath ? `${dpName}.${dpePath}` : dpName;
+
+        // Parse the value
+        let parsed: unknown = rawValue;
+        if (rawValue === 'true') parsed = true;
+        else if (rawValue === 'false') parsed = false;
+        else if (rawValue !== '' && !isNaN(Number(rawValue))) parsed = Number(rawValue);
+
+        const result = await this.mcpClient.dpSet(fullDpe, parsed);
+
+        if (result.success) {
+            vscode.window.showInformationMessage(`Value set: ${fullDpe} = ${rawValue}`);
+            // Wait briefly for WinCC OA to update SQLite, then refresh
+            setTimeout(() => {
+                this.update(this.db, this.currentDpId, this.currentElId, this.currentLabel);
+            }, 500);
+        } else {
+            vscode.window.showErrorMessage(`Failed to set value: ${result.error}`);
+        }
     }
 
-    // Build the full element path from the element tree
-    const dpePath = this.db.getElementPath(this.currentDpId, this.currentElId);
-    const fullDpe = dpePath ? `${dpName}.${dpePath}` : dpName;
+    private update(db: SqliteClient, dpId: number, elId: number, label: string): void {
+        this.db = db;
+        this.currentDpId = dpId;
+        this.currentElId = elId;
+        this.currentLabel = label;
+        this.panel.title = `Config: ${label}`;
+        this.lastKnownSystemTime = undefined; // reset cache when switching element
 
-    // Parse the value
-    let parsed: unknown = rawValue;
-    if (rawValue === 'true') parsed = true;
-    else if (rawValue === 'false') parsed = false;
-    else if (rawValue !== '' && !isNaN(Number(rawValue))) parsed = Number(rawValue);
+        const configs: DpeConfigs = {
+            address: db.getAddressConfig(dpId, elId),
+            alertHdl: db.getAlertHdlConfig(dpId, elId),
+            alertHdlDetails: db.getAlertHdlDetails(dpId, elId),
+            archive: db.getArchiveConfig(dpId, elId),
+            archiveDetail: db.getArchiveDetail(dpId, elId),
+            pvRange: db.getPvRangeConfig(dpId, elId),
+            smooth: db.getSmoothConfig(dpId, elId),
+            distrib: db.getDistribConfig(dpId, elId),
+            lastValue: db.getLastValue(dpId, elId),
+            displayName: db.getDisplayName(dpId, elId),
+            unitAndFormat: db.getUnitAndFormat(dpId, elId),
+            activeAlerts: db.getActiveAlerts(dpId, elId),
+        };
 
-    const result = await this.mcpClient.dpSet(fullDpe, parsed);
+        const element = db.getElementByIds(dpId, elId);
+        const dpName = db.getDatapointName(dpId);
+        const datatype = element?.datatype;
+        const isLeaf = datatype !== undefined && isLeafType(datatype);
 
-    if (result.success) {
-      vscode.window.showInformationMessage(`Value set: ${fullDpe} = ${rawValue}`);
-      // Wait briefly for WinCC OA to update SQLite, then refresh
-      setTimeout(() => {
-        this.update(this.db, this.currentDpId, this.currentElId, this.currentLabel);
-      }, 500);
-    } else {
-      vscode.window.showErrorMessage(`Failed to set value: ${result.error}`);
+        this.panel.webview.html = this.getHtml(
+            label,
+            dpId,
+            elId,
+            dpName,
+            datatype,
+            isLeaf,
+            configs,
+        );
+        this.startRefresh();
     }
-  }
 
-  private update(db: SqliteClient, dpId: number, elId: number, label: string): void {
-    this.db = db;
-    this.currentDpId = dpId;
-    this.currentElId = elId;
-    this.currentLabel = label;
-    this.panel.title = `Config: ${label}`;
-    this.lastKnownSystemTime = undefined; // reset cache when switching element
-
-    const configs: DpeConfigs = {
-      address: db.getAddressConfig(dpId, elId),
-      alertHdl: db.getAlertHdlConfig(dpId, elId),
-      alertHdlDetails: db.getAlertHdlDetails(dpId, elId),
-      archive: db.getArchiveConfig(dpId, elId),
-      archiveDetail: db.getArchiveDetail(dpId, elId),
-      pvRange: db.getPvRangeConfig(dpId, elId),
-      smooth: db.getSmoothConfig(dpId, elId),
-      distrib: db.getDistribConfig(dpId, elId),
-      lastValue: db.getLastValue(dpId, elId),
-      displayName: db.getDisplayName(dpId, elId),
-      unitAndFormat: db.getUnitAndFormat(dpId, elId),
-      activeAlerts: db.getActiveAlerts(dpId, elId),
-    };
-
-    const element = db.getElementByIds(dpId, elId);
-    const dpName = db.getDatapointName(dpId);
-    const datatype = element?.datatype;
-    const isLeaf = datatype !== undefined && isLeafType(datatype);
-
-    this.panel.webview.html = this.getHtml(label, dpId, elId, dpName, datatype, isLeaf, configs);
-    this.startRefresh();
-  }
-
-  private startRefresh(): void {
-    this.stopRefresh();
-    this.refreshInterval = setInterval(() => this.sendRefresh(), ConfigEditorPanel.REFRESH_INTERVAL_MS);
-  }
-
-  private stopRefresh(): void {
-    if (this.refreshInterval !== undefined) {
-      clearInterval(this.refreshInterval);
-      this.refreshInterval = undefined;
+    private startRefresh(): void {
+        this.stopRefresh();
+        this.refreshInterval = setInterval(
+            () => this.sendRefresh(),
+            ConfigEditorPanel.REFRESH_INTERVAL_MS,
+        );
     }
-  }
 
-  private sendRefresh(): void {
-    if (!this.db.isOpen) return;
+    private stopRefresh(): void {
+        if (this.refreshInterval !== undefined) {
+            clearInterval(this.refreshInterval);
+            this.refreshInterval = undefined;
+        }
+    }
 
-    // Cheap check: only read last value first and skip full refresh if unchanged
-    const lv = this.db.getLastValue(this.currentDpId, this.currentElId);
-    const currentSystemTime = lv?.system_time ?? null;
-    if (currentSystemTime === this.lastKnownSystemTime) return;
-    this.lastKnownSystemTime = currentSystemTime;
+    private sendRefresh(): void {
+        if (!this.db.isOpen) return;
 
-    const element = this.db.getElementByIds(this.currentDpId, this.currentElId);
-    const datatype = element?.datatype;
-    const isLeaf = datatype !== undefined && isLeafType(datatype);
-    const typeName = datatype !== undefined ? getTypeName(datatype) : 'unknown';
+        // Cheap check: only read last value first and skip full refresh if unchanged
+        const lv = this.db.getLastValue(this.currentDpId, this.currentElId);
+        const currentSystemTime = lv?.system_time ?? null;
+        if (currentSystemTime === this.lastKnownSystemTime) return;
+        this.lastKnownSystemTime = currentSystemTime;
 
-    const configs: DpeConfigs = {
-      address: this.db.getAddressConfig(this.currentDpId, this.currentElId),
-      alertHdl: this.db.getAlertHdlConfig(this.currentDpId, this.currentElId),
-      alertHdlDetails: this.db.getAlertHdlDetails(this.currentDpId, this.currentElId),
-      archive: this.db.getArchiveConfig(this.currentDpId, this.currentElId),
-      archiveDetail: this.db.getArchiveDetail(this.currentDpId, this.currentElId),
-      pvRange: this.db.getPvRangeConfig(this.currentDpId, this.currentElId),
-      smooth: this.db.getSmoothConfig(this.currentDpId, this.currentElId),
-      distrib: this.db.getDistribConfig(this.currentDpId, this.currentElId),
-      lastValue: lv,
-      displayName: this.db.getDisplayName(this.currentDpId, this.currentElId),
-      unitAndFormat: this.db.getUnitAndFormat(this.currentDpId, this.currentElId),
-      activeAlerts: this.db.getActiveAlerts(this.currentDpId, this.currentElId),
-    };
+        const element = this.db.getElementByIds(this.currentDpId, this.currentElId);
+        const datatype = element?.datatype;
+        const isLeaf = datatype !== undefined && isLeafType(datatype);
+        const typeName = datatype !== undefined ? getTypeName(datatype) : 'unknown';
 
-    this.panel.webview.postMessage({
-      command: 'refresh',
-      alarmBanner: isLeaf ? this.renderAlarmBanner(configs) : '',
-      onlinePanel: isLeaf ? this.renderOnlinePanelBody(configs, typeName) : '',
-      sections: {
-        address: this.renderAddress(configs),
-        alert: this.renderAlertHdl(configs),
-        archive: this.renderArchive(configs),
-        pvrange: this.renderPvRange(configs),
-        smooth: this.renderSmooth(configs),
-        distrib: this.renderDistrib(configs),
-      },
-    });
-  }
+        const configs: DpeConfigs = {
+            address: this.db.getAddressConfig(this.currentDpId, this.currentElId),
+            alertHdl: this.db.getAlertHdlConfig(this.currentDpId, this.currentElId),
+            alertHdlDetails: this.db.getAlertHdlDetails(this.currentDpId, this.currentElId),
+            archive: this.db.getArchiveConfig(this.currentDpId, this.currentElId),
+            archiveDetail: this.db.getArchiveDetail(this.currentDpId, this.currentElId),
+            pvRange: this.db.getPvRangeConfig(this.currentDpId, this.currentElId),
+            smooth: this.db.getSmoothConfig(this.currentDpId, this.currentElId),
+            distrib: this.db.getDistribConfig(this.currentDpId, this.currentElId),
+            lastValue: lv,
+            displayName: this.db.getDisplayName(this.currentDpId, this.currentElId),
+            unitAndFormat: this.db.getUnitAndFormat(this.currentDpId, this.currentElId),
+            activeAlerts: this.db.getActiveAlerts(this.currentDpId, this.currentElId),
+        };
 
-  private getHtml(
-    label: string,
-    dpId: number,
-    elId: number,
-    dpName: string | undefined,
-    datatype: number | undefined,
-    isLeaf: boolean,
-    configs: DpeConfigs,
-  ): string {
-    const typeName = datatype !== undefined ? getTypeName(datatype) : 'unknown';
-    const fullPath = dpName ? `${dpName}.${label}` : label;
+        this.panel.webview.postMessage({
+            command: 'refresh',
+            alarmBanner: isLeaf ? this.renderAlarmBanner(configs) : '',
+            onlinePanel: isLeaf ? this.renderOnlinePanelBody(configs, typeName) : '',
+            sections: {
+                address: this.renderAddress(configs),
+                alert: this.renderAlertHdl(configs),
+                archive: this.renderArchive(configs),
+                pvrange: this.renderPvRange(configs),
+                smooth: this.renderSmooth(configs),
+                distrib: this.renderDistrib(configs),
+            },
+        });
+    }
 
-    const sections: string[] = [];
+    private getHtml(
+        label: string,
+        dpId: number,
+        elId: number,
+        dpName: string | undefined,
+        datatype: number | undefined,
+        isLeaf: boolean,
+        configs: DpeConfigs,
+    ): string {
+        const typeName = datatype !== undefined ? getTypeName(datatype) : 'unknown';
+        const fullPath = dpName ? `${dpName}.${label}` : label;
 
-    // Header
-    sections.push(`
+        const sections: string[] = [];
+
+        // Header
+        sections.push(`
       <div class="header">
         <h2>${esc(fullPath)}</h2>
         <div class="meta">
@@ -261,28 +284,30 @@ export class ConfigEditorPanel {
       </div>
     `);
 
-    // Alarm banner container — always present so live refresh can update it
-    sections.push(`<div id="alarm-banner-container">${isLeaf ? this.renderAlarmBanner(configs) : ''}</div>`);
+        // Alarm banner container — always present so live refresh can update it
+        sections.push(
+            `<div id="alarm-banner-container">${isLeaf ? this.renderAlarmBanner(configs) : ''}</div>`,
+        );
 
-    // Original + Online value panels side-by-side — only for leaf elements
-    if (isLeaf) {
-      sections.push(this.renderValuePanels(configs, typeName, datatype));
-    }
+        // Original + Online value panels side-by-side — only for leaf elements
+        if (isLeaf) {
+            sections.push(this.renderValuePanels(configs, typeName, datatype));
+        }
 
-    // History section (leaf elements only)
-    if (isLeaf) {
-      sections.push(this.renderHistorySection());
-    }
+        // History section (leaf elements only)
+        if (isLeaf) {
+            sections.push(this.renderHistorySection());
+        }
 
-    // Config sections
-    sections.push(this.renderAddress(configs));
-    sections.push(this.renderAlertHdl(configs));
-    sections.push(this.renderArchive(configs));
-    sections.push(this.renderPvRange(configs));
-    sections.push(this.renderSmooth(configs));
-    sections.push(this.renderDistrib(configs));
+        // Config sections
+        sections.push(this.renderAddress(configs));
+        sections.push(this.renderAlertHdl(configs));
+        sections.push(this.renderArchive(configs));
+        sections.push(this.renderPvRange(configs));
+        sections.push(this.renderSmooth(configs));
+        sections.push(this.renderDistrib(configs));
 
-    return `<!DOCTYPE html>
+        return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -836,39 +861,41 @@ export class ConfigEditorPanel {
   </script>
 </body>
 </html>`;
-  }
+    }
 
-  /** Render alarm banner(s) for active alerts on this element */
-  private renderAlarmBanner(configs: DpeConfigs): string {
-    const alerts = configs.activeAlerts;
-    if (!alerts || alerts.length === 0) return '';
+    /** Render alarm banner(s) for active alerts on this element */
+    private renderAlarmBanner(configs: DpeConfigs): string {
+        const alerts = configs.activeAlerts;
+        if (!alerts || alerts.length === 0) return '';
 
-    return alerts.map(alert => {
-      const state = getAlarmState(alert);
-      if (state === 'none' || state === 'went_ack') return '';
+        return alerts
+            .map((alert) => {
+                const state = getAlarmState(alert);
+                if (state === 'none' || state === 'went_ack') return '';
 
-      // Look up alert class for colors
-      const alertClass = this.db.getAlertClass(alert.class_dp_id, alert.class_dp_el_id);
-      const className = this.db.getAlertClassName(alert.class_dp_id) || 'unknown';
+                // Look up alert class for colors
+                const alertClass = this.db.getAlertClass(alert.class_dp_id, alert.class_dp_el_id);
+                const className = this.db.getAlertClassName(alert.class_dp_id) || 'unknown';
 
-      let bgColor = '#666';
-      let fgColor = '#fff';
-      if (alertClass) {
-        const colorName = getAlarmColorName(alertClass, state);
-        const colors = resolveColor(colorName);
-        bgColor = colors.bg;
-        fgColor = colors.fg;
-      }
+                let bgColor = '#666';
+                let fgColor = '#fff';
+                if (alertClass) {
+                    const colorName = getAlarmColorName(alertClass, state);
+                    const colors = resolveColor(colorName);
+                    bgColor = colors.bg;
+                    fgColor = colors.fg;
+                }
 
-      const blinkCss = getBlinkClass(state);
-      const stateLabel = getAlarmStateLabel(state);
-      const alarmText = (state === 'went_unack')
-        ? (alert.went_text || alert.came_text || 'Alert')
-        : (alert.came_text || 'Alert');
-      const cameTime = formatNanosTimestamp(alert.came_time);
-      const priority = alertClass ? alertClass.prior : '?';
+                const blinkCss = getBlinkClass(state);
+                const stateLabel = getAlarmStateLabel(state);
+                const alarmText =
+                    state === 'went_unack'
+                        ? alert.went_text || alert.came_text || 'Alert'
+                        : alert.came_text || 'Alert';
+                const cameTime = formatNanosTimestamp(alert.came_time);
+                const priority = alertClass ? alertClass.prior : '?';
 
-      return `
+                return `
         <div class="alarm-banner ${blinkCss}" style="background: ${bgColor}; color: ${fgColor};">
           <span class="alarm-icon">&#9888;</span>
           <div class="alarm-content">
@@ -880,21 +907,26 @@ export class ConfigEditorPanel {
           <span class="alarm-state-badge" style="color: ${fgColor};">${esc(stateLabel)}</span>
         </div>
       `;
-    }).join('\n');
-  }
+            })
+            .join('\n');
+    }
 
-  /** Render side-by-side Original (editable) and Online (read-only) value panels */
-  private renderValuePanels(configs: DpeConfigs, elementTypeName: string, datatype?: number): string {
-    const lv = configs.lastValue;
-    const unit = configs.unitAndFormat?.unit || '';
-    const valueStr = lv && lv.value !== null && lv.value !== undefined ? String(lv.value) : '';
-    const unitHtml = unit ? `<span class="value-unit">${esc(unit)}</span>` : '';
-    const inputHtml = buildValueInput(valueStr, datatype);
+    /** Render side-by-side Original (editable) and Online (read-only) value panels */
+    private renderValuePanels(
+        configs: DpeConfigs,
+        elementTypeName: string,
+        datatype?: number,
+    ): string {
+        const lv = configs.lastValue;
+        const unit = configs.unitAndFormat?.unit || '';
+        const valueStr = lv && lv.value !== null && lv.value !== undefined ? String(lv.value) : '';
+        const unitHtml = unit ? `<span class="value-unit">${esc(unit)}</span>` : '';
+        const inputHtml = buildValueInput(valueStr, datatype);
 
-    // ── Original (left panel) ──
-    let originalBody: string;
-    if (!lv) {
-      originalBody = `
+        // ── Original (left panel) ──
+        let originalBody: string;
+        if (!lv) {
+            originalBody = `
         <span class="value-none">No value recorded</span>
         <div class="value-edit">
           ${inputHtml}
@@ -902,9 +934,9 @@ export class ConfigEditorPanel {
           <button id="setValueBtn">Set</button>
         </div>
       `;
-    } else {
-      const origTimestamp = formatNanosTimestamp(lv.original_time);
-      originalBody = `
+        } else {
+            const origTimestamp = formatNanosTimestamp(lv.original_time);
+            originalBody = `
         <div class="value-edit">
           ${inputHtml}
           ${unitHtml}
@@ -917,9 +949,9 @@ export class ConfigEditorPanel {
           <tr><th>User</th><td>${lv.user_id}</td></tr>
         </table>
       `;
-    }
+        }
 
-    return `
+        return `
       <div class="value-panels">
         <div class="value-panel original">
           <div class="value-panel-header"><span>Original Value</span></div>
@@ -931,19 +963,19 @@ export class ConfigEditorPanel {
         </div>
       </div>
     `;
-  }
-
-  private renderOnlinePanelBody(configs: DpeConfigs, typeName: string): string {
-    const lv = configs.lastValue;
-    const unit = configs.unitAndFormat?.unit || '';
-    const valueStr = lv && lv.value !== null && lv.value !== undefined ? String(lv.value) : '';
-    const unitHtml = unit ? `<span class="value-unit">${esc(unit)}</span>` : '';
-    if (!lv) {
-      return `<span class="value-none">No value recorded</span>`;
     }
-    const sysTimestamp = formatNanosTimestamp(lv.system_time);
-    const statusHex = formatStatus64(lv.status_64);
-    return `
+
+    private renderOnlinePanelBody(configs: DpeConfigs, typeName: string): string {
+        const lv = configs.lastValue;
+        const unit = configs.unitAndFormat?.unit || '';
+        const valueStr = lv && lv.value !== null && lv.value !== undefined ? String(lv.value) : '';
+        const unitHtml = unit ? `<span class="value-unit">${esc(unit)}</span>` : '';
+        if (!lv) {
+            return `<span class="value-none">No value recorded</span>`;
+        }
+        const sysTimestamp = formatNanosTimestamp(lv.system_time);
+        const statusHex = formatStatus64(lv.status_64);
+        return `
       <div class="online-value-display">
         ${esc(valueStr)} ${unitHtml}
       </div>
@@ -955,15 +987,18 @@ export class ConfigEditorPanel {
         <tr><th>User</th><td>${lv.user_id}</td></tr>
       </table>
     `;
-  }
-
-  private renderAddress(configs: DpeConfigs): string {
-    const addr = configs.address;
-    if (!addr) {
-      return this.renderEmptySection('Address', 'address');
     }
 
-    return this.renderSection('Address', 'address', `
+    private renderAddress(configs: DpeConfigs): string {
+        const addr = configs.address;
+        if (!addr) {
+            return this.renderEmptySection('Address', 'address');
+        }
+
+        return this.renderSection(
+            'Address',
+            'address',
+            `
       <table>
         <tr><th>Reference</th><td>${esc(addr.reference || '')}</td></tr>
         <tr><th>Driver Ident</th><td>${esc(addr.drv_ident || '')}</td></tr>
@@ -974,50 +1009,59 @@ export class ConfigEditorPanel {
         <tr><th>Response Mode</th><td>${addr.response_mode}</td></tr>
         <tr><th>Datatype</th><td>${getTypeName(addr.datatype)}</td></tr>
       </table>
-    `);
-  }
-
-  private renderAlertHdl(configs: DpeConfigs): string {
-    const ah = configs.alertHdl;
-    if (!ah) {
-      return this.renderEmptySection('Alert Handling', 'alert');
+    `,
+        );
     }
 
-    const activeBadge = ah.active
-      ? '<span class="badge active">Active</span>'
-      : '<span class="badge inactive">Inactive</span>';
+    private renderAlertHdl(configs: DpeConfigs): string {
+        const ah = configs.alertHdl;
+        if (!ah) {
+            return this.renderEmptySection('Alert Handling', 'alert');
+        }
 
-    const configTypes: Record<number, string> = {
-      1: 'Analog (range-based)',
-      2: 'Digital (discrete)',
-      3: 'Summary alert',
-    };
+        const activeBadge = ah.active
+            ? '<span class="badge active">Active</span>'
+            : '<span class="badge inactive">Inactive</span>';
 
-    let detailsHtml = '';
-    const details = configs.alertHdlDetails;
-    if (details && details.length > 0) {
-      const rows = details.map(d => {
-        const range = d.l_limit !== null && d.u_limit !== null
-          ? `${d.l_incl ? '[' : '('}${d.l_limit} .. ${d.u_limit}${d.u_incl ? ']' : ')'}`
-          : d.match !== null ? `match: "${esc(d.match)}"` : 'n/a';
-        return `<tr>
+        const configTypes: Record<number, string> = {
+            1: 'Analog (range-based)',
+            2: 'Digital (discrete)',
+            3: 'Summary alert',
+        };
+
+        let detailsHtml = '';
+        const details = configs.alertHdlDetails;
+        if (details && details.length > 0) {
+            const rows = details
+                .map((d) => {
+                    const range =
+                        d.l_limit !== null && d.u_limit !== null
+                            ? `${d.l_incl ? '[' : '('}${d.l_limit} .. ${d.u_limit}${d.u_incl ? ']' : ')'}`
+                            : d.match !== null
+                              ? `match: "${esc(d.match)}"`
+                              : 'n/a';
+                    return `<tr>
           <td>${d.detail_nr}</td>
           <td>${d.range_type}</td>
           <td>${range}</td>
           <td>${esc(d.add_text || '')}</td>
           <td>${d.class_dp_id}:${d.class_el_id}</td>
         </tr>`;
-      }).join('');
+                })
+                .join('');
 
-      detailsHtml = `
+            detailsHtml = `
         <table class="detail-table" style="margin-top: 12px;">
           <tr><th>#</th><th>Range Type</th><th>Range</th><th>Text</th><th>Alert Class</th></tr>
           ${rows}
         </table>
       `;
-    }
+        }
 
-    return this.renderSection('Alert Handling', 'alert', `
+        return this.renderSection(
+            'Alert Handling',
+            'alert',
+            `
       <table>
         <tr><th>Status</th><td>${activeBadge}</td></tr>
         <tr><th>Config Type</th><td>${configTypes[ah.config_type] || ah.config_type}</td></tr>
@@ -1029,29 +1073,30 @@ export class ConfigEditorPanel {
         <tr><th>Multi-Instance</th><td>${ah.multi_instance ? 'Yes' : 'No'}</td></tr>
       </table>
       ${detailsHtml}
-    `);
-  }
-
-  private renderArchive(configs: DpeConfigs): string {
-    const arch = configs.archive;
-    if (!arch) {
-      return this.renderEmptySection('Archive', 'archive');
+    `,
+        );
     }
 
-    const activeBadge = arch.archive
-      ? '<span class="badge active">Enabled</span>'
-      : '<span class="badge inactive">Disabled</span>';
+    private renderArchive(configs: DpeConfigs): string {
+        const arch = configs.archive;
+        if (!arch) {
+            return this.renderEmptySection('Archive', 'archive');
+        }
 
-    let detailHtml = '';
-    const ad = configs.archiveDetail;
-    if (ad) {
-      const procTypes: Record<number, string> = {
-        0: 'None',
-        1: 'Value-based',
-        2: 'Time-based',
-        3: 'Value & time-based',
-      };
-      detailHtml = `
+        const activeBadge = arch.archive
+            ? '<span class="badge active">Enabled</span>'
+            : '<span class="badge inactive">Disabled</span>';
+
+        let detailHtml = '';
+        const ad = configs.archiveDetail;
+        if (ad) {
+            const procTypes: Record<number, string> = {
+                0: 'None',
+                1: 'Value-based',
+                2: 'Time-based',
+                3: 'Value & time-based',
+            };
+            detailHtml = `
         <table style="margin-top: 8px;">
           <tr><th>Processing Type</th><td>${procTypes[ad.proc_type] || ad.proc_type}</td></tr>
           <tr><th>Interval Type</th><td>${ad.interv_type}</td></tr>
@@ -1064,26 +1109,33 @@ export class ConfigEditorPanel {
           <tr><th>Class</th><td>${esc(ad.class || '')}</td></tr>
         </table>
       `;
-    }
+        }
 
-    return this.renderSection('Archive', 'archive', `
+        return this.renderSection(
+            'Archive',
+            'archive',
+            `
       <table>
         <tr><th>Archive</th><td>${activeBadge}</td></tr>
       </table>
       ${detailHtml}
-    `);
-  }
-
-  private renderPvRange(configs: DpeConfigs): string {
-    const pv = configs.pvRange;
-    if (!pv) {
-      return this.renderEmptySection('PV Range', 'pvrange');
+    `,
+        );
     }
 
-    const min = pv.min !== null ? `${pv.incl_min ? '[' : '('}${pv.min}` : '(-\u221e';
-    const max = pv.max !== null ? `${pv.max}${pv.incl_max ? ']' : ')'}` : '+\u221e)';
+    private renderPvRange(configs: DpeConfigs): string {
+        const pv = configs.pvRange;
+        if (!pv) {
+            return this.renderEmptySection('PV Range', 'pvrange');
+        }
 
-    return this.renderSection('PV Range', 'pvrange', `
+        const min = pv.min !== null ? `${pv.incl_min ? '[' : '('}${pv.min}` : '(-\u221e';
+        const max = pv.max !== null ? `${pv.max}${pv.incl_max ? ']' : ')'}` : '+\u221e)';
+
+        return this.renderSection(
+            'PV Range',
+            'pvrange',
+            `
       <table>
         <tr><th>Range</th><td>${min} .. ${max}</td></tr>
         <tr><th>Config Type</th><td>${pv.config_type}</td></tr>
@@ -1092,46 +1144,55 @@ export class ConfigEditorPanel {
         <tr><th>Negate</th><td>${pv.neg ? 'Yes' : 'No'}</td></tr>
         ${pv.match !== null ? `<tr><th>Match</th><td>${esc(pv.match)}</td></tr>` : ''}
       </table>
-    `);
-  }
-
-  private renderSmooth(configs: DpeConfigs): string {
-    const sm = configs.smooth;
-    if (!sm) {
-      return this.renderEmptySection('Smoothing', 'smooth');
+    `,
+        );
     }
 
-    const smoothTypes: Record<number, string> = {
-      0: 'None',
-      1: 'Old/New comparison',
-      2: 'Old/New + tolerance',
-    };
+    private renderSmooth(configs: DpeConfigs): string {
+        const sm = configs.smooth;
+        if (!sm) {
+            return this.renderEmptySection('Smoothing', 'smooth');
+        }
 
-    return this.renderSection('Smoothing', 'smooth', `
+        const smoothTypes: Record<number, string> = {
+            0: 'None',
+            1: 'Old/New comparison',
+            2: 'Old/New + tolerance',
+        };
+
+        return this.renderSection(
+            'Smoothing',
+            'smooth',
+            `
       <table>
         <tr><th>Type</th><td>${smoothTypes[sm.type] || sm.type}</td></tr>
         <tr><th>Std Type</th><td>${sm.std_type}</td></tr>
         <tr><th>Std Time</th><td>${sm.std_time ?? 'n/a'}</td></tr>
         <tr><th>Std Tolerance</th><td>${sm.std_tol ?? 'n/a'}</td></tr>
       </table>
-    `);
-  }
-
-  private renderDistrib(configs: DpeConfigs): string {
-    const dist = configs.distrib;
-    if (!dist) {
-      return this.renderEmptySection('Distribution', 'distrib');
+    `,
+        );
     }
 
-    return this.renderSection('Distribution', 'distrib', `
+    private renderDistrib(configs: DpeConfigs): string {
+        const dist = configs.distrib;
+        if (!dist) {
+            return this.renderEmptySection('Distribution', 'distrib');
+        }
+
+        return this.renderSection(
+            'Distribution',
+            'distrib',
+            `
       <table>
         <tr><th>Driver Number</th><td>${dist.driver_number}</td></tr>
       </table>
-    `);
-  }
+    `,
+        );
+    }
 
-  private renderHistorySection(): string {
-    return `
+    private renderHistorySection(): string {
+        return `
       <div class="section history" id="historySection" style="display:none">
         <div class="section-header">
           <span>History</span>
@@ -1154,19 +1215,19 @@ export class ConfigEditorPanel {
         </div>
       </div>
     `;
-  }
+    }
 
-  private renderSection(title: string, cssClass: string, body: string): string {
-    return `
+    private renderSection(title: string, cssClass: string, body: string): string {
+        return `
       <div class="section ${cssClass}" id="section-${cssClass}">
         <div class="section-header"><span>${esc(title)}</span></div>
         <div class="section-body">${body}</div>
       </div>
     `;
-  }
+    }
 
-  private renderEmptySection(title: string, cssClass: string): string {
-    return `
+    private renderEmptySection(title: string, cssClass: string): string {
+        return `
       <div class="section ${cssClass} empty" id="section-${cssClass}">
         <div class="section-header">
           <span>${esc(title)}</span>
@@ -1174,85 +1235,83 @@ export class ConfigEditorPanel {
         </div>
       </div>
     `;
-  }
-
-  private dispose(): void {
-    this.stopRefresh();
-    ConfigEditorPanel.currentPanel = undefined;
-    this.panel.dispose();
-    while (this.disposables.length) {
-      const d = this.disposables.pop();
-      d?.dispose();
     }
-  }
+
+    private dispose(): void {
+        this.stopRefresh();
+        ConfigEditorPanel.currentPanel = undefined;
+        this.panel.dispose();
+        while (this.disposables.length) {
+            const d = this.disposables.pop();
+            d?.dispose();
+        }
+    }
 }
 
 /** Build an appropriate input control for the given OA data type */
 function buildValueInput(valueStr: string, datatype: number | undefined): string {
-  switch (datatype) {
-    case OaElementType.BOOL:
-    case OaElementType.DYN_BOOL: {
-      const isTrue = valueStr === 'true' || valueStr === '1';
-      const trueSelected = isTrue ? 'selected' : '';
-      const falseSelected = !isTrue ? 'selected' : '';
-      return `<select id="valueInput">
+    switch (datatype) {
+        case OaElementType.BOOL:
+        case OaElementType.DYN_BOOL: {
+            const isTrue = valueStr === 'true' || valueStr === '1';
+            const trueSelected = isTrue ? 'selected' : '';
+            const falseSelected = !isTrue ? 'selected' : '';
+            return `<select id="valueInput">
         <option value="true" ${trueSelected}>true</option>
         <option value="false" ${falseSelected}>false</option>
       </select>`;
+        }
+        case OaElementType.INT:
+        case OaElementType.LONG:
+        case OaElementType.DYN_INT:
+            return `<input type="number" step="1" data-integer="true" id="valueInput" value="${esc(valueStr)}" />`;
+        case OaElementType.UINT:
+        case OaElementType.ULONG:
+        case OaElementType.CHAR:
+        case OaElementType.DYN_UINT:
+        case OaElementType.DYN_CHAR:
+            return `<input type="number" step="1" min="0" data-integer="true" id="valueInput" value="${esc(valueStr)}" />`;
+        case OaElementType.FLOAT:
+        case OaElementType.DYN_FLOAT:
+            return `<input type="number" step="any" id="valueInput" value="${esc(valueStr)}" />`;
+        default:
+            return `<input type="text" id="valueInput" value="${esc(valueStr)}" placeholder="Enter value" />`;
     }
-    case OaElementType.INT:
-    case OaElementType.LONG:
-    case OaElementType.DYN_INT:
-      return `<input type="number" step="1" data-integer="true" id="valueInput" value="${esc(valueStr)}" />`;
-    case OaElementType.UINT:
-    case OaElementType.ULONG:
-    case OaElementType.CHAR:
-    case OaElementType.DYN_UINT:
-    case OaElementType.DYN_CHAR:
-      return `<input type="number" step="1" min="0" data-integer="true" id="valueInput" value="${esc(valueStr)}" />`;
-    case OaElementType.FLOAT:
-    case OaElementType.DYN_FLOAT:
-      return `<input type="number" step="any" id="valueInput" value="${esc(valueStr)}" />`;
-    default:
-      return `<input type="text" id="valueInput" value="${esc(valueStr)}" placeholder="Enter value" />`;
-  }
 }
 
 function esc(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 }
 
 /** Convert nanoseconds-since-epoch string to human-readable datetime */
 function formatNanosTimestamp(nanosStr: string | null): string {
-  if (!nanosStr) return 'n/a';
-  try {
-    // Nanoseconds → milliseconds: drop last 6 digits
-    const ms = nanosStr.length > 6
-      ? Number(nanosStr.slice(0, -6))
-      : 0;
-    if (isNaN(ms) || ms <= 0) return 'n/a';
-    const d = new Date(ms);
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const millis = nanosStr.slice(-9, -6) || '000';
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${millis}`;
-  } catch {
-    return nanosStr;
-  }
+    if (!nanosStr) return 'n/a';
+    try {
+        // Nanoseconds → milliseconds: drop last 6 digits
+        const ms = nanosStr.length > 6 ? Number(nanosStr.slice(0, -6)) : 0;
+        if (isNaN(ms) || ms <= 0) return 'n/a';
+        const d = new Date(ms);
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const millis = nanosStr.slice(-9, -6) || '000';
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${millis}`;
+    } catch {
+        return nanosStr;
+    }
 }
 
 /** Format 64-bit status as hex string */
 function formatStatus64(statusStr: string | null): string {
-  if (!statusStr) return '0x0';
-  try {
-    const n = BigInt(statusStr);
-    // Show as unsigned hex
-    const hex = (n < 0n ? (n + (1n << 64n)) : n).toString(16).toUpperCase();
-    return `0x${hex}`;
-  } catch {
-    return statusStr;
-  }
+    if (!statusStr) return '0x0';
+    try {
+        const n = BigInt(statusStr);
+        // Show as unsigned hex
+        const hex = (n < 0n ? n + (1n << 64n) : n).toString(16).toUpperCase();
+        return `0x${hex}`;
+    } catch {
+        return statusStr;
+    }
 }

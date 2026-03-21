@@ -21,8 +21,7 @@ suite('SQLite Database Integration Tests', () => {
         assert.strictEqual(
             hasSqlite,
             true,
-            'SQLite fixtures not found. Run: npm run test:fixtures'
+            'SQLite fixtures not found. Run: npm run test:fixtures',
         );
     });
 });
-

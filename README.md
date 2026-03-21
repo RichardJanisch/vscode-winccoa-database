@@ -27,7 +27,7 @@ View all configurations for a datapoint element:
 Automatically connects to WinCC OA projects via:
 
 1. Extension settings (`winccoa-database.projectPath`)
-2. `winccoa-project-admin` extension API 
+2. `winccoa-project-admin` extension API
 3. Workspace folder detection
 
 ## Architecture

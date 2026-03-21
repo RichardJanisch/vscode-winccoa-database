@@ -12,22 +12,20 @@ import * as fs from 'fs';
  * based on process.versions.modules (the current ABI version).
  */
 export function resolveNativeBinding(): string | undefined {
-  const abi = process.versions.modules;
-  const platform = process.platform;
-  const arch = process.arch;
+    const abi = process.versions.modules;
+    const platform = process.platform;
+    const arch = process.arch;
 
-  // Look for a matching prebuild shipped alongside the extension
-  const prebuildsDir = path.join(__dirname, '..', 'prebuilds', `${platform}-${arch}`);
-  const candidates = [
-    path.join(prebuildsDir, `better_sqlite3_${abi}.node`),
-  ];
+    // Look for a matching prebuild shipped alongside the extension
+    const prebuildsDir = path.join(__dirname, '..', 'prebuilds', `${platform}-${arch}`);
+    const candidates = [path.join(prebuildsDir, `better_sqlite3_${abi}.node`)];
 
-  for (const candidate of candidates) {
-    if (fs.existsSync(candidate)) {
-      return candidate;
+    for (const candidate of candidates) {
+        if (fs.existsSync(candidate)) {
+            return candidate;
+        }
     }
-  }
 
-  // Fallback: let better-sqlite3 resolve its own binding (default behavior)
-  return undefined;
+    // Fallback: let better-sqlite3 resolve its own binding (default behavior)
+    return undefined;
 }

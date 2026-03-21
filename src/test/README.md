@@ -63,13 +63,13 @@ const path = getTestProjectPath('runnable');
 
 see also:
 
-+ test\integration\test-project-helpers.test.ts
+- test\integration\test-project-helpers.test.ts
 
 ## Test Fixtures
 
 The helper uses test project fixtures located in `test/fixtures/projects/`:
 
-+ `runnable/` - A complete runnable WinCC OA project for testing
-+ `sub-proj/` - A sub-project fixture (not runnable)
+- `runnable/` - A complete runnable WinCC OA project for testing
+- `sub-proj/` - A sub-project fixture (not runnable)
 
 Each fixture contains a `config/` directory with WinCC OA configuration files.

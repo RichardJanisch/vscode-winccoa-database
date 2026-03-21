@@ -10,28 +10,29 @@ Publisher: `winccoa-tools-pack` · License: MIT · Minimum VS Code: 1.106
 
 WinCC OA is a SCADA system by Siemens/ETM. Its database consists of:
 
-| Term | Meaning |
-|------|---------|
-| **DPT** (Datapoint Type) | Schema / struct definition. Like a class. |
-| **DP** (Datapoint) | An instance of a DPT. Like an object. |
-| **DPE** (Datapoint Element) | A field inside a DP. Can be scalar or a nested Struct. |
-| **Element type** | The data type of a DPE (Bool, Int, Float, String, Struct, …). See `src/models/types.ts`. |
-| **Config** | Metadata on a DPE: address, alert handling, archive, PV range, smoothing, distribution. |
-| **SQLite cache** | WinCC OA 3.20+ writes its runtime database to SQLite files under `{projectDir}/db/wincc_oa/sqlite/`. These are **read-only** from outside WinCC OA. |
-| **MCP HTTP server** | The companion server (`winccoa-mcp-server`) that runs as a WinCC OA Node.js Manager and provides an HTTP/MCP API to write back to the WinCC OA runtime. **Required for all write operations** (create DP, delete DP, create/edit/delete DPT, set value). |
+| Term                        | Meaning                                                                                                                                                                                                                                                  |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **DPT** (Datapoint Type)    | Schema / struct definition. Like a class.                                                                                                                                                                                                                |
+| **DP** (Datapoint)          | An instance of a DPT. Like an object.                                                                                                                                                                                                                    |
+| **DPE** (Datapoint Element) | A field inside a DP. Can be scalar or a nested Struct.                                                                                                                                                                                                   |
+| **Element type**            | The data type of a DPE (Bool, Int, Float, String, Struct, …). See `src/models/types.ts`.                                                                                                                                                                 |
+| **Config**                  | Metadata on a DPE: address, alert handling, archive, PV range, smoothing, distribution.                                                                                                                                                                  |
+| **SQLite cache**            | WinCC OA 3.20+ writes its runtime database to SQLite files under `{projectDir}/db/wincc_oa/sqlite/`. These are **read-only** from outside WinCC OA.                                                                                                      |
+| **MCP HTTP server**         | The companion server (`winccoa-mcp-server`) that runs as a WinCC OA Node.js Manager and provides an HTTP/MCP API to write back to the WinCC OA runtime. **Required for all write operations** (create DP, delete DP, create/edit/delete DPT, set value). |
 
 ### SQLite databases (read-only)
 
-| File | Content |
-|------|---------|
-| `ident.sqlite` | DPTs, DPEs, DPs, display names, units |
-| `config.sqlite` | Address, alert, archive, PV range, smooth, distrib configs |
-| `last_value.sqlite` | Last known values per DPE |
-| `last_alert.sqlite` | Active alert instances (optional, may not exist) |
+| File                | Content                                                    |
+| ------------------- | ---------------------------------------------------------- |
+| `ident.sqlite`      | DPTs, DPEs, DPs, display names, units                      |
+| `config.sqlite`     | Address, alert, archive, PV range, smooth, distrib configs |
+| `last_value.sqlite` | Last known values per DPE                                  |
+| `last_alert.sqlite` | Active alert instances (optional, may not exist)           |
 
 ### MCP server (write path)
 
 The companion repo is at `c:\Git\winccoa-mcp-server` (local) and on GitHub under `winccoa-tools-pack/winccoa-mcp-server`. It exposes tools including:
+
 - `datapoints.dp_create` / `dp_delete` / `dp_set`
 - `dp_types.dp_type_create` / `dp_type_change` / `dp_type_delete`
 
@@ -86,14 +87,14 @@ npm test                # Full test suite (requires VS Code environment)
 
 ## Branching model (GitFlow)
 
-| Branch | Purpose |
-|--------|---------|
-| `develop` | Default branch — all feature/bugfix work targets here |
-| `main` | Stable releases only |
-| `feature/*` | New features → PR to `develop` |
-| `bugfix/*` | Bug fixes → PR to `develop` |
-| `release/vX.Y.Z` | Release branches → PR to `main` |
-| `hotfix/vX.Y.Z` | Urgent fixes → PR to `main` |
+| Branch           | Purpose                                               |
+| ---------------- | ----------------------------------------------------- |
+| `develop`        | Default branch — all feature/bugfix work targets here |
+| `main`           | Stable releases only                                  |
+| `feature/*`      | New features → PR to `develop`                        |
+| `bugfix/*`       | Bug fixes → PR to `develop`                           |
+| `release/vX.Y.Z` | Release branches → PR to `main`                       |
+| `hotfix/vX.Y.Z`  | Urgent fixes → PR to `main`                           |
 
 ## Key constraints for agents
 

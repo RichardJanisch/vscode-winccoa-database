@@ -25,45 +25,57 @@ const fs = require('fs');
 // ── Load node:sqlite (built-in, no native addon needed) ──────────────────────
 let DatabaseSync;
 try {
-  ({ DatabaseSync } = require('node:sqlite'));
+    ({ DatabaseSync } = require('node:sqlite'));
 } catch (e) {
-  console.error(
-    'ERROR: node:sqlite module not available.\n' +
-    'Requires Node.js >= 22.5.0. Current version: ' + process.version + '\n' +
-    'If you are on Node.js 22.x, the package.json script already adds --experimental-sqlite.\n' +
-    'Run: node --experimental-sqlite scripts/create-test-fixtures.js'
-  );
-  process.exit(1);
+    console.error(
+        'ERROR: node:sqlite module not available.\n' +
+            'Requires Node.js >= 22.5.0. Current version: ' +
+            process.version +
+            '\n' +
+            'If you are on Node.js 22.x, the package.json script already adds --experimental-sqlite.\n' +
+            'Run: node --experimental-sqlite scripts/create-test-fixtures.js',
+    );
+    process.exit(1);
 }
 
 // Minimal Database wrapper matching the API used below
 class Database {
-  constructor(filePath) {
-    this._db = new DatabaseSync(filePath);
-  }
-  pragma(str) {
-    // node:sqlite doesn't have a pragma() shorthand — execute as SQL
-    this._db.exec(`PRAGMA ${str};`);
-  }
-  exec(sql) { this._db.exec(sql); }
-  prepare(sql) {
-    const stmt = this._db.prepare(sql);
-    return {
-      run: (...args) => stmt.run(...args),
-      get: (...args) => stmt.get(...args),
-      all: (...args) => stmt.all(...args),
-    };
-  }
-  close() { this._db.close(); }
+    constructor(filePath) {
+        this._db = new DatabaseSync(filePath);
+    }
+    pragma(str) {
+        // node:sqlite doesn't have a pragma() shorthand — execute as SQL
+        this._db.exec(`PRAGMA ${str};`);
+    }
+    exec(sql) {
+        this._db.exec(sql);
+    }
+    prepare(sql) {
+        const stmt = this._db.prepare(sql);
+        return {
+            run: (...args) => stmt.run(...args),
+            get: (...args) => stmt.get(...args),
+            all: (...args) => stmt.all(...args),
+        };
+    }
+    close() {
+        this._db.close();
+    }
 }
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 
 // ── Target directory ──────────────────────────────────────────────────────────
 const SQLITE_DIR = path.join(
-  REPO_ROOT,
-  'src', 'test', 'fixtures', 'projects', 'runnable',
-  'db', 'wincc_oa', 'sqlite'
+    REPO_ROOT,
+    'src',
+    'test',
+    'fixtures',
+    'projects',
+    'runnable',
+    'db',
+    'wincc_oa',
+    'sqlite',
 );
 
 fs.mkdirSync(SQLITE_DIR, { recursive: true });
@@ -73,13 +85,13 @@ console.log(`Target directory: ${SQLITE_DIR}\n`);
 // ident.sqlite
 // ─────────────────────────────────────────────────────────────────────────────
 function createIdentDb() {
-  const dbPath = path.join(SQLITE_DIR, 'ident.sqlite');
-  if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+    const dbPath = path.join(SQLITE_DIR, 'ident.sqlite');
+    if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
 
-  const db = new Database(dbPath);
-  db.pragma('journal_mode = WAL');
+    const db = new Database(dbPath);
+    db.pragma('journal_mode = WAL');
 
-  db.exec(`
+    db.exec(`
     CREATE TABLE IF NOT EXISTS datapoint_type (
       dpt_id            INTEGER PRIMARY KEY,
       canonical_name    TEXT NOT NULL,
@@ -126,58 +138,61 @@ function createIdentDb() {
     );
   `);
 
-  // ── Sample data ──
-  // Two datapoint types
-  const insertDpt = db.prepare(
-    'INSERT INTO datapoint_type (dpt_id, canonical_name, next_free_el_id, modification_time) VALUES (?, ?, ?, ?)'
-  );
-  insertDpt.run(1, 'ExampleDP_Float', 3, 1700000000);
-  insertDpt.run(2, 'ExampleDP_Bool',  3, 1700000001);
+    // ── Sample data ──
+    // Two datapoint types
+    const insertDpt = db.prepare(
+        'INSERT INTO datapoint_type (dpt_id, canonical_name, next_free_el_id, modification_time) VALUES (?, ?, ?, ?)',
+    );
+    insertDpt.run(1, 'ExampleDP_Float', 3, 1700000000);
+    insertDpt.run(2, 'ExampleDP_Bool', 3, 1700000001);
 
-  // Elements for ExampleDP_Float: root (el_id=1) → value (el_id=2)
-  const insertEl = db.prepare(
-    'INSERT INTO datapoint_element (el_id, dpt_id, position_in_type, parent_el_id, datatype, referenced_type, source_dpt_id, source_el_id, canonical_name, modification_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-  );
-  insertEl.run(1, 1, 0, 0, 0, 0, 0, 0, 'ExampleDP_Float', 1700000000); // root
-  insertEl.run(2, 1, 1, 1, 4, 0, 0, 0, 'value',           1700000000); // FLOAT leaf
+    // Elements for ExampleDP_Float: root (el_id=1) → value (el_id=2)
+    const insertEl = db.prepare(
+        'INSERT INTO datapoint_element (el_id, dpt_id, position_in_type, parent_el_id, datatype, referenced_type, source_dpt_id, source_el_id, canonical_name, modification_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    );
+    insertEl.run(1, 1, 0, 0, 0, 0, 0, 0, 'ExampleDP_Float', 1700000000); // root
+    insertEl.run(2, 1, 1, 1, 4, 0, 0, 0, 'value', 1700000000); // FLOAT leaf
 
-  // Elements for ExampleDP_Bool: root (el_id=1) → value (el_id=2)
-  insertEl.run(1, 2, 0, 0, 0, 0, 0, 0, 'ExampleDP_Bool', 1700000001); // root
-  insertEl.run(2, 2, 1, 1, 1, 0, 0, 0, 'value',          1700000001); // BOOL leaf
+    // Elements for ExampleDP_Bool: root (el_id=1) → value (el_id=2)
+    insertEl.run(1, 2, 0, 0, 0, 0, 0, 0, 'ExampleDP_Bool', 1700000001); // root
+    insertEl.run(2, 2, 1, 1, 1, 0, 0, 0, 'value', 1700000001); // BOOL leaf
 
-  // Datapoints
-  const insertDp = db.prepare(
-    'INSERT INTO datapoint (dp_id, dpt_id, canonical_name, modification_time) VALUES (?, ?, ?, ?)'
-  );
-  insertDp.run(1, 1, 'ExampleDP_Arg1', 1700000002);
-  insertDp.run(2, 1, 'ExampleDP_Arg2', 1700000003);
-  insertDp.run(3, 2, 'ExampleDP_Arg3', 1700000004);
+    // Datapoints
+    const insertDp = db.prepare(
+        'INSERT INTO datapoint (dp_id, dpt_id, canonical_name, modification_time) VALUES (?, ?, ?, ?)',
+    );
+    insertDp.run(1, 1, 'ExampleDP_Arg1', 1700000002);
+    insertDp.run(2, 1, 'ExampleDP_Arg2', 1700000003);
+    insertDp.run(3, 2, 'ExampleDP_Arg3', 1700000004);
 
-  // Display names
-  db.prepare('INSERT INTO display_name (dp_id, el_id, language_id, text) VALUES (?, ?, ?, ?)')
-    .run(1, 2, 10001, 'Example Float Value 1');
-  db.prepare('INSERT INTO display_name (dp_id, el_id, language_id, text) VALUES (?, ?, ?, ?)')
-    .run(3, 2, 10001, 'Example Bool Value');
+    // Display names
+    db.prepare(
+        'INSERT INTO display_name (dp_id, el_id, language_id, text) VALUES (?, ?, ?, ?)',
+    ).run(1, 2, 10001, 'Example Float Value 1');
+    db.prepare(
+        'INSERT INTO display_name (dp_id, el_id, language_id, text) VALUES (?, ?, ?, ?)',
+    ).run(3, 2, 10001, 'Example Bool Value');
 
-  // Unit/format
-  db.prepare('INSERT INTO unit_and_format (dp_id, el_id, language_id, unit, format) VALUES (?, ?, ?, ?, ?)')
-    .run(1, 2, 0, '°C', '%.2f');
+    // Unit/format
+    db.prepare(
+        'INSERT INTO unit_and_format (dp_id, el_id, language_id, unit, format) VALUES (?, ?, ?, ?, ?)',
+    ).run(1, 2, 0, '°C', '%.2f');
 
-  db.close();
-  console.log('✅ Created ident.sqlite');
+    db.close();
+    console.log('✅ Created ident.sqlite');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // config.sqlite
 // ─────────────────────────────────────────────────────────────────────────────
 function createConfigDb() {
-  const dbPath = path.join(SQLITE_DIR, 'config.sqlite');
-  if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+    const dbPath = path.join(SQLITE_DIR, 'config.sqlite');
+    if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
 
-  const db = new Database(dbPath);
-  db.pragma('journal_mode = WAL');
+    const db = new Database(dbPath);
+    db.pragma('journal_mode = WAL');
 
-  db.exec(`
+    db.exec(`
     CREATE TABLE IF NOT EXISTS address (
       dp_id             INTEGER NOT NULL,
       el_id             INTEGER NOT NULL,
@@ -309,36 +324,36 @@ function createConfigDb() {
     );
   `);
 
-  // Sample address config for dp_id=1, el_id=2
-  db.prepare(
-    'INSERT INTO address (dp_id, el_id, reference, subindex, drv_ident, modification_time) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run(1, 2, 'OPCUA:ns=2;i=1001', 0, 'OPCUA', 1700000010);
+    // Sample address config for dp_id=1, el_id=2
+    db.prepare(
+        'INSERT INTO address (dp_id, el_id, reference, subindex, drv_ident, modification_time) VALUES (?, ?, ?, ?, ?, ?)',
+    ).run(1, 2, 'OPCUA:ns=2;i=1001', 0, 'OPCUA', 1700000010);
 
-  // Sample pv_range for dp_id=1, el_id=2
-  db.prepare(
-    'INSERT INTO pv_range (dp_id, el_id, config_type, variable_type, min, max, incl_min, incl_max, modification_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-  ).run(1, 2, 1, 4, 0.0, 100.0, 1, 1, 1700000010);
+    // Sample pv_range for dp_id=1, el_id=2
+    db.prepare(
+        'INSERT INTO pv_range (dp_id, el_id, config_type, variable_type, min, max, incl_min, incl_max, modification_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    ).run(1, 2, 1, 4, 0.0, 100.0, 1, 1, 1700000010);
 
-  // Sample archive for dp_id=1, el_id=2
-  db.prepare(
-    'INSERT INTO archive (dp_id, el_id, archive, modification_time) VALUES (?, ?, ?, ?)'
-  ).run(1, 2, 1, 1700000010);
+    // Sample archive for dp_id=1, el_id=2
+    db.prepare(
+        'INSERT INTO archive (dp_id, el_id, archive, modification_time) VALUES (?, ?, ?, ?)',
+    ).run(1, 2, 1, 1700000010);
 
-  db.close();
-  console.log('✅ Created config.sqlite');
+    db.close();
+    console.log('✅ Created config.sqlite');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // last_value.sqlite
 // ─────────────────────────────────────────────────────────────────────────────
 function createLastValueDb() {
-  const dbPath = path.join(SQLITE_DIR, 'last_value.sqlite');
-  if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+    const dbPath = path.join(SQLITE_DIR, 'last_value.sqlite');
+    if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
 
-  const db = new Database(dbPath);
-  db.pragma('journal_mode = WAL');
+    const db = new Database(dbPath);
+    db.pragma('journal_mode = WAL');
 
-  db.exec(`
+    db.exec(`
     CREATE TABLE IF NOT EXISTS last_value (
       dp_id         INTEGER NOT NULL,
       el_id         INTEGER NOT NULL,
@@ -355,28 +370,28 @@ function createLastValueDb() {
     );
   `);
 
-  // Sample values: dp1/el2 = 42.5, dp2/el2 = 13.7, dp3/el2 = 1 (bool)
-  const insert = db.prepare(
-    'INSERT INTO last_value (dp_id, el_id, dyn_idx, language_id, value, variable_type, original_time, system_time, status_64) VALUES (?, ?, 0, 0, ?, ?, ?, ?, 0)'
-  );
-  insert.run(1, 2, '42.5', 4, 1700000020, 1700000020);  // FLOAT
-  insert.run(2, 2, '13.7', 4, 1700000021, 1700000021);  // FLOAT
-  insert.run(3, 2, '1',   1, 1700000022, 1700000022);   // BOOL
+    // Sample values: dp1/el2 = 42.5, dp2/el2 = 13.7, dp3/el2 = 1 (bool)
+    const insert = db.prepare(
+        'INSERT INTO last_value (dp_id, el_id, dyn_idx, language_id, value, variable_type, original_time, system_time, status_64) VALUES (?, ?, 0, 0, ?, ?, ?, ?, 0)',
+    );
+    insert.run(1, 2, '42.5', 4, 1700000020, 1700000020); // FLOAT
+    insert.run(2, 2, '13.7', 4, 1700000021, 1700000021); // FLOAT
+    insert.run(3, 2, '1', 1, 1700000022, 1700000022); // BOOL
 
-  db.close();
-  console.log('✅ Created last_value.sqlite');
+    db.close();
+    console.log('✅ Created last_value.sqlite');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Run
 // ─────────────────────────────────────────────────────────────────────────────
 try {
-  createIdentDb();
-  createConfigDb();
-  createLastValueDb();
-  console.log('\n✅ All test fixture databases created successfully.');
-  console.log(`   Location: ${SQLITE_DIR}`);
+    createIdentDb();
+    createConfigDb();
+    createLastValueDb();
+    console.log('\n✅ All test fixture databases created successfully.');
+    console.log(`   Location: ${SQLITE_DIR}`);
 } catch (err) {
-  console.error('\n❌ Failed to create test fixtures:', err.message);
-  process.exit(1);
+    console.error('\n❌ Failed to create test fixtures:', err.message);
+    process.exit(1);
 }

@@ -4,208 +4,229 @@ import type { McpClient } from '../api/mcpClient';
 import { OaElementType } from '../models/types';
 
 interface ChildEntry {
-  name: string;
-  typeCode: number;
-  children: ChildEntry[];
+    name: string;
+    typeCode: number;
+    children: ChildEntry[];
 }
 
 interface FieldEntry {
-  name: string;
-  typeCode: number;
-  children: ChildEntry[];
+    name: string;
+    typeCode: number;
+    children: ChildEntry[];
 }
 
 interface TypeGroup {
-  label: string;
-  options: Array<{ value: number; label: string }>;
+    label: string;
+    options: Array<{ value: number; label: string }>;
 }
 
 const TYPE_GROUPS: TypeGroup[] = [
-  { label: 'Scalar', options: [
-    { value: OaElementType.BOOL,       label: 'bool' },
-    { value: OaElementType.CHAR,       label: 'char' },
-    { value: OaElementType.UINT,       label: 'uint' },
-    { value: OaElementType.INT,        label: 'int' },
-    { value: OaElementType.FLOAT,      label: 'float' },
-    { value: OaElementType.STRING,     label: 'string' },
-    { value: OaElementType.TIME,       label: 'time' },
-    { value: OaElementType.DPID,       label: 'dpid' },
-    { value: OaElementType.BIT32,      label: 'bit32' },
-    { value: OaElementType.BIT64,      label: 'bit64' },
-    { value: OaElementType.LONG,       label: 'long' },
-    { value: OaElementType.ULONG,      label: 'ulong' },
-    { value: OaElementType.BLOB,       label: 'blob' },
-    { value: OaElementType.LANGSTRING, label: 'langstring' },
-  ]},
-  { label: 'Dynamic Array', options: [
-    { value: OaElementType.DYN_BOOL,   label: 'dyn_bool' },
-    { value: OaElementType.DYN_CHAR,   label: 'dyn_char' },
-    { value: OaElementType.DYN_UINT,   label: 'dyn_uint' },
-    { value: OaElementType.DYN_INT,    label: 'dyn_int' },
-    { value: OaElementType.DYN_FLOAT,  label: 'dyn_float' },
-    { value: OaElementType.DYN_STRING, label: 'dyn_string' },
-    { value: OaElementType.DYN_TIME,   label: 'dyn_time' },
-    { value: OaElementType.DYN_DPID,   label: 'dyn_dpid' },
-    { value: OaElementType.DYN_BIT32,  label: 'dyn_bit32' },
-    { value: OaElementType.DYN_BIT64,  label: 'dyn_bit64' },
-    { value: OaElementType.DYN_LONG,   label: 'dyn_long' },
-    { value: OaElementType.DYN_ULONG,  label: 'dyn_ulong' },
-  ]},
-  { label: 'Structure', options: [
-    { value: OaElementType.STRUCT, label: 'struct' },
-  ]},
+    {
+        label: 'Scalar',
+        options: [
+            { value: OaElementType.BOOL, label: 'bool' },
+            { value: OaElementType.CHAR, label: 'char' },
+            { value: OaElementType.UINT, label: 'uint' },
+            { value: OaElementType.INT, label: 'int' },
+            { value: OaElementType.FLOAT, label: 'float' },
+            { value: OaElementType.STRING, label: 'string' },
+            { value: OaElementType.TIME, label: 'time' },
+            { value: OaElementType.DPID, label: 'dpid' },
+            { value: OaElementType.BIT32, label: 'bit32' },
+            { value: OaElementType.BIT64, label: 'bit64' },
+            { value: OaElementType.LONG, label: 'long' },
+            { value: OaElementType.ULONG, label: 'ulong' },
+            { value: OaElementType.BLOB, label: 'blob' },
+            { value: OaElementType.LANGSTRING, label: 'langstring' },
+        ],
+    },
+    {
+        label: 'Dynamic Array',
+        options: [
+            { value: OaElementType.DYN_BOOL, label: 'dyn_bool' },
+            { value: OaElementType.DYN_CHAR, label: 'dyn_char' },
+            { value: OaElementType.DYN_UINT, label: 'dyn_uint' },
+            { value: OaElementType.DYN_INT, label: 'dyn_int' },
+            { value: OaElementType.DYN_FLOAT, label: 'dyn_float' },
+            { value: OaElementType.DYN_STRING, label: 'dyn_string' },
+            { value: OaElementType.DYN_TIME, label: 'dyn_time' },
+            { value: OaElementType.DYN_DPID, label: 'dyn_dpid' },
+            { value: OaElementType.DYN_BIT32, label: 'dyn_bit32' },
+            { value: OaElementType.DYN_BIT64, label: 'dyn_bit64' },
+            { value: OaElementType.DYN_LONG, label: 'dyn_long' },
+            { value: OaElementType.DYN_ULONG, label: 'dyn_ulong' },
+        ],
+    },
+    { label: 'Structure', options: [{ value: OaElementType.STRUCT, label: 'struct' }] },
 ];
 
 export class DptEditorPanel {
-  public static currentPanel: DptEditorPanel | undefined;
-  private static readonly viewType = 'winccoa-database.dptEditor';
+    public static currentPanel: DptEditorPanel | undefined;
+    private static readonly viewType = 'winccoa-database.dptEditor';
 
-  private readonly panel: vscode.WebviewPanel;
-  private disposables: vscode.Disposable[] = [];
-  private currentTypeName = '';
-  private mode: 'create' | 'edit' = 'edit';
+    private readonly panel: vscode.WebviewPanel;
+    private disposables: vscode.Disposable[] = [];
+    private currentTypeName = '';
+    private mode: 'create' | 'edit' = 'edit';
 
-  private constructor(
-    panel: vscode.WebviewPanel,
-    private db: SqliteClient | null,
-    private mcpClient: McpClient | null,
-  ) {
-    this.panel = panel;
-    this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
-    this.panel.webview.onDidReceiveMessage(
-      (msg) => this.handleMessage(msg),
-      null,
-      this.disposables,
-    );
-  }
-
-  public static show(
-    db: SqliteClient,
-    dptId: number,
-    typeName: string,
-    _extensionUri: vscode.Uri,
-    mcpClient: McpClient | null = null,
-  ): void {
-    const column = vscode.ViewColumn.One;
-    if (DptEditorPanel.currentPanel) {
-      DptEditorPanel.currentPanel.mcpClient = mcpClient;
-      DptEditorPanel.currentPanel.db = db;
-      DptEditorPanel.currentPanel.panel.reveal(column);
-      DptEditorPanel.currentPanel.updateEdit(db, dptId, typeName);
-      return;
+    private constructor(
+        panel: vscode.WebviewPanel,
+        private db: SqliteClient | null,
+        private mcpClient: McpClient | null,
+    ) {
+        this.panel = panel;
+        this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
+        this.panel.webview.onDidReceiveMessage(
+            (msg) => this.handleMessage(msg),
+            null,
+            this.disposables,
+        );
     }
-    const panel = vscode.window.createWebviewPanel(
-      DptEditorPanel.viewType,
-      `Edit DPT: ${typeName}`,
-      column,
-      { enableScripts: true, retainContextWhenHidden: true },
-    );
-    DptEditorPanel.currentPanel = new DptEditorPanel(panel, db, mcpClient);
-    DptEditorPanel.currentPanel.updateEdit(db, dptId, typeName);
-  }
 
-  public static showCreate(
-    _extensionUri: vscode.Uri,
-    mcpClient: McpClient | null = null,
-  ): void {
-    const column = vscode.ViewColumn.One;
-    if (DptEditorPanel.currentPanel) {
-      DptEditorPanel.currentPanel.mcpClient = mcpClient;
-      DptEditorPanel.currentPanel.panel.reveal(column);
-      DptEditorPanel.currentPanel.updateCreate();
-      return;
+    public static show(
+        db: SqliteClient,
+        dptId: number,
+        typeName: string,
+        _extensionUri: vscode.Uri,
+        mcpClient: McpClient | null = null,
+    ): void {
+        const column = vscode.ViewColumn.One;
+        if (DptEditorPanel.currentPanel) {
+            DptEditorPanel.currentPanel.mcpClient = mcpClient;
+            DptEditorPanel.currentPanel.db = db;
+            DptEditorPanel.currentPanel.panel.reveal(column);
+            DptEditorPanel.currentPanel.updateEdit(db, dptId, typeName);
+            return;
+        }
+        const panel = vscode.window.createWebviewPanel(
+            DptEditorPanel.viewType,
+            `Edit DPT: ${typeName}`,
+            column,
+            { enableScripts: true, retainContextWhenHidden: true },
+        );
+        DptEditorPanel.currentPanel = new DptEditorPanel(panel, db, mcpClient);
+        DptEditorPanel.currentPanel.updateEdit(db, dptId, typeName);
     }
-    const panel = vscode.window.createWebviewPanel(
-      DptEditorPanel.viewType,
-      'Create Datapoint Type',
-      column,
-      { enableScripts: true, retainContextWhenHidden: true },
-    );
-    DptEditorPanel.currentPanel = new DptEditorPanel(panel, null, mcpClient);
-    DptEditorPanel.currentPanel.updateCreate();
-  }
 
-  private updateEdit(db: SqliteClient, dptId: number, typeName: string): void {
-    this.db = db;
-    this.currentTypeName = typeName;
-    this.mode = 'edit';
-    this.panel.title = `Edit DPT: ${typeName}`;
-
-    const allElements = db.getElementsByDptId(dptId);
-
-    const buildFields = (parentElId: number): FieldEntry[] =>
-      allElements
-        .filter(e => e.parent_el_id === parentElId)
-        .map(e => ({
-          name: e.canonical_name,
-          typeCode: e.datatype,
-          children: e.datatype === OaElementType.STRUCT ? buildFields(e.el_id) : [],
-        }));
-
-    const root = allElements.find(e => e.parent_el_id === 0);
-    const fields = root ? buildFields(root.el_id) : [];
-    this.panel.webview.html = this.getHtml(typeName, fields, 'edit');
-  }
-
-  private updateCreate(): void {
-    this.currentTypeName = '';
-    this.mode = 'create';
-    this.panel.title = 'Create Datapoint Type';
-    this.panel.webview.html = this.getHtml('', [], 'create');
-  }
-
-  private handleMessage(msg: { command: string; typeName?: string; elements?: string[][]; types?: number[][] }): void {
-    switch (msg.command) {
-      case 'saveDptChange':
-        if (msg.elements && msg.types) { this.saveDptChange(msg.elements, msg.types); }
-        break;
-      case 'createDpt':
-        if (msg.typeName && msg.elements && msg.types) { this.createDpt(msg.typeName, msg.elements, msg.types); }
-        break;
+    public static showCreate(_extensionUri: vscode.Uri, mcpClient: McpClient | null = null): void {
+        const column = vscode.ViewColumn.One;
+        if (DptEditorPanel.currentPanel) {
+            DptEditorPanel.currentPanel.mcpClient = mcpClient;
+            DptEditorPanel.currentPanel.panel.reveal(column);
+            DptEditorPanel.currentPanel.updateCreate();
+            return;
+        }
+        const panel = vscode.window.createWebviewPanel(
+            DptEditorPanel.viewType,
+            'Create Datapoint Type',
+            column,
+            { enableScripts: true, retainContextWhenHidden: true },
+        );
+        DptEditorPanel.currentPanel = new DptEditorPanel(panel, null, mcpClient);
+        DptEditorPanel.currentPanel.updateCreate();
     }
-  }
 
-  private async saveDptChange(elements: string[][], types: number[][]): Promise<void> {
-    if (!this.mcpClient?.isConfigured) {
-      vscode.window.showWarningMessage('MCP HTTP server not configured. Ensure the WinCC OA MCP server is running.');
-      return;
-    }
-    const result = await this.mcpClient.dpTypeChange(this.currentTypeName, elements, types);
-    if (result.success) {
-      vscode.window.showInformationMessage(`Datapoint type "${this.currentTypeName}" updated.`);
-    } else {
-      vscode.window.showErrorMessage(`Failed to update datapoint type: ${result.error}`);
-    }
-  }
+    private updateEdit(db: SqliteClient, dptId: number, typeName: string): void {
+        this.db = db;
+        this.currentTypeName = typeName;
+        this.mode = 'edit';
+        this.panel.title = `Edit DPT: ${typeName}`;
 
-  private async createDpt(typeName: string, elements: string[][], types: number[][]): Promise<void> {
-    if (!this.mcpClient?.isConfigured) {
-      vscode.window.showWarningMessage('MCP HTTP server not configured. Ensure the WinCC OA MCP server is running.');
-      return;
-    }
-    const result = await this.mcpClient.dpTypeCreate(typeName, elements, types);
-    if (result.success) {
-      this.mode = 'edit';
-      this.currentTypeName = typeName;
-      this.panel.title = `Edit DPT: ${typeName}`;
-      this.panel.webview.postMessage({ command: 'switchToEditMode', typeName });
-      vscode.window.showInformationMessage(`Datapoint type "${typeName}" created.`);
-      vscode.commands.executeCommand('winccoa-database.refreshDptTree');
-    } else {
-      vscode.window.showErrorMessage(`Failed to create datapoint type: ${result.error}`);
-    }
-  }
+        const allElements = db.getElementsByDptId(dptId);
 
-  private getHtml(typeName: string, fields: FieldEntry[], mode: 'create' | 'edit'): string {
-    const typeGroupsJson = JSON.stringify(TYPE_GROUPS);
-    const fieldsJson = JSON.stringify(fields);
-    const modeJson = JSON.stringify(mode);
-    const typeNameJson = JSON.stringify(typeName);
-    const structTypeValue = OaElementType.STRUCT;
-    const heading = mode === 'create' ? 'Create Datapoint Type' : `Edit Datapoint Type: ${esc(typeName)}`;
-    const actionLabel = mode === 'create' ? 'Create Datapoint Type' : 'Save Changes';
+        const buildFields = (parentElId: number): FieldEntry[] =>
+            allElements
+                .filter((e) => e.parent_el_id === parentElId)
+                .map((e) => ({
+                    name: e.canonical_name,
+                    typeCode: e.datatype,
+                    children: e.datatype === OaElementType.STRUCT ? buildFields(e.el_id) : [],
+                }));
 
-    return `<!DOCTYPE html>
+        const root = allElements.find((e) => e.parent_el_id === 0);
+        const fields = root ? buildFields(root.el_id) : [];
+        this.panel.webview.html = this.getHtml(typeName, fields, 'edit');
+    }
+
+    private updateCreate(): void {
+        this.currentTypeName = '';
+        this.mode = 'create';
+        this.panel.title = 'Create Datapoint Type';
+        this.panel.webview.html = this.getHtml('', [], 'create');
+    }
+
+    private handleMessage(msg: {
+        command: string;
+        typeName?: string;
+        elements?: string[][];
+        types?: number[][];
+    }): void {
+        switch (msg.command) {
+            case 'saveDptChange':
+                if (msg.elements && msg.types) {
+                    this.saveDptChange(msg.elements, msg.types);
+                }
+                break;
+            case 'createDpt':
+                if (msg.typeName && msg.elements && msg.types) {
+                    this.createDpt(msg.typeName, msg.elements, msg.types);
+                }
+                break;
+        }
+    }
+
+    private async saveDptChange(elements: string[][], types: number[][]): Promise<void> {
+        if (!this.mcpClient?.isConfigured) {
+            vscode.window.showWarningMessage(
+                'MCP HTTP server not configured. Ensure the WinCC OA MCP server is running.',
+            );
+            return;
+        }
+        const result = await this.mcpClient.dpTypeChange(this.currentTypeName, elements, types);
+        if (result.success) {
+            vscode.window.showInformationMessage(
+                `Datapoint type "${this.currentTypeName}" updated.`,
+            );
+        } else {
+            vscode.window.showErrorMessage(`Failed to update datapoint type: ${result.error}`);
+        }
+    }
+
+    private async createDpt(
+        typeName: string,
+        elements: string[][],
+        types: number[][],
+    ): Promise<void> {
+        if (!this.mcpClient?.isConfigured) {
+            vscode.window.showWarningMessage(
+                'MCP HTTP server not configured. Ensure the WinCC OA MCP server is running.',
+            );
+            return;
+        }
+        const result = await this.mcpClient.dpTypeCreate(typeName, elements, types);
+        if (result.success) {
+            this.mode = 'edit';
+            this.currentTypeName = typeName;
+            this.panel.title = `Edit DPT: ${typeName}`;
+            this.panel.webview.postMessage({ command: 'switchToEditMode', typeName });
+            vscode.window.showInformationMessage(`Datapoint type "${typeName}" created.`);
+            vscode.commands.executeCommand('winccoa-database.refreshDptTree');
+        } else {
+            vscode.window.showErrorMessage(`Failed to create datapoint type: ${result.error}`);
+        }
+    }
+
+    private getHtml(typeName: string, fields: FieldEntry[], mode: 'create' | 'edit'): string {
+        const typeGroupsJson = JSON.stringify(TYPE_GROUPS);
+        const fieldsJson = JSON.stringify(fields);
+        const modeJson = JSON.stringify(mode);
+        const typeNameJson = JSON.stringify(typeName);
+        const structTypeValue = OaElementType.STRUCT;
+        const heading =
+            mode === 'create' ? 'Create Datapoint Type' : `Edit Datapoint Type: ${esc(typeName)}`;
+        const actionLabel = mode === 'create' ? 'Create Datapoint Type' : 'Save Changes';
+
+        return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -297,12 +318,13 @@ export class DptEditorPanel {
 </head>
 <body>
   <h2>${heading}</h2>
-  ${mode === 'create'
-    ? `<div id="typeNameRow" class="type-name-row">
+  ${
+      mode === 'create'
+          ? `<div id="typeNameRow" class="type-name-row">
         <label for="typeName">Type name:</label>
         <input id="typeName" class="type-name" type="text" placeholder="MyType" />
       </div>`
-    : `<div class="info">
+          : `<div class="info">
         Modify field names and types, add or remove fields, and drag rows to reorder.
         Click <strong>Save Changes</strong> to apply via WinCC OA <code>dpTypeChange</code>.
       </div>`
@@ -574,21 +596,21 @@ export class DptEditorPanel {
   </script>
 </body>
 </html>`;
-  }
-
-  private dispose(): void {
-    DptEditorPanel.currentPanel = undefined;
-    this.panel.dispose();
-    while (this.disposables.length) {
-      this.disposables.pop()?.dispose();
     }
-  }
+
+    private dispose(): void {
+        DptEditorPanel.currentPanel = undefined;
+        this.panel.dispose();
+        while (this.disposables.length) {
+            this.disposables.pop()?.dispose();
+        }
+    }
 }
 
 function esc(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 }

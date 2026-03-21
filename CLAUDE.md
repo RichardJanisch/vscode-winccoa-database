@@ -42,6 +42,7 @@ Run `npm run lint` and `npm run test:unit` after every code change. Do **not** r
 ## MCP server (companion repo)
 
 The write path depends on the WinCC OA MCP server. The local companion repo is at `c:\Git\winccoa-mcp-server`. When implementing features that create, modify, or delete DPTs or DPs, the relevant MCP tools are:
+
 - `dp_types.dp_type_create` / `dp_type_change` / `dp_type_delete`
 - `datapoints.dp_create` / `dp_delete` / `dp_set`
 
