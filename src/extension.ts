@@ -6,7 +6,7 @@ import { DptTreeProvider } from './providers/dptTreeProvider';
 import { DatabaseTreeItem } from './providers/dptTreeProvider';
 import { ConfigEditorPanel } from './providers/configEditorProvider';
 import { DptEditorPanel } from './providers/dptEditorProvider';
-import { McpClient } from './api/mcpClient';
+import { McpClient, promptMcpSetup } from './api/mcpClient';
 
 // ---------------------------------------------------------------------------
 
@@ -115,9 +115,7 @@ export async function activate(context: vscode.ExtensionContext) {
             if (!dpeName) return;
 
             if (!mcpClient.isConfigured) {
-                vscode.window.showErrorMessage(
-                    'MCP server not configured. Cannot create datapoint.',
-                );
+                promptMcpSetup();
                 return;
             }
 
@@ -172,9 +170,7 @@ export async function activate(context: vscode.ExtensionContext) {
             if (confirm !== confirmLabel) return;
 
             if (!mcpClient.isConfigured) {
-                vscode.window.showErrorMessage(
-                    'MCP server not configured. Cannot delete datapoint type.',
-                );
+                promptMcpSetup();
                 return;
             }
 
@@ -213,9 +209,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 if (confirm !== 'Delete') return;
 
                 if (!mcpClient.isConfigured) {
-                    vscode.window.showErrorMessage(
-                        'MCP server not configured. Cannot delete datapoints.',
-                    );
+                    promptMcpSetup();
                     return;
                 }
 
@@ -491,6 +485,9 @@ function connectToProject(projectPath: string, version?: string): void {
 
         // Configure MCP client for value setting
         const mcpConfigured = mcpClient.configure(projectPath);
+        if (!mcpConfigured) {
+            promptMcpSetup();
+        }
         if (mcpConfigured) {
             mcpClient.checkHealth().then((healthy) => {
                 if (healthy) {
