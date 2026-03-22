@@ -77,7 +77,7 @@ if (mode === '--download-node') {
         execFileSync(
             process.execPath,
             [
-                path.join(ROOT, 'node_modules', '.bin', 'prebuild-install'),
+                require.resolve('prebuild-install/bin'),
                 '--runtime',
                 'node',
                 '--target',
