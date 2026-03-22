@@ -194,6 +194,11 @@ export class McpClient {
         try {
             await this.ensureSession();
         } catch (err) {
+            const msg = String(err);
+            if (msg.includes('fetch failed') || msg.includes('ECONNREFUSED')) {
+                promptMcpSetup();
+                return { success: false, error: 'MCP server is not reachable.' };
+            }
             return { success: false, error: `MCP session init failed: ${err}` };
         }
 
