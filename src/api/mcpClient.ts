@@ -207,7 +207,6 @@ export class McpClient {
         } catch (err) {
             const msg = String(err);
             if (msg.includes('fetch failed') || msg.includes('ECONNREFUSED')) {
-                promptMcpSetup();
                 return { success: false, error: 'MCP server is not reachable.' };
             }
             return { success: false, error: `MCP session init failed: ${err}` };
@@ -406,20 +405,46 @@ export class McpClient {
     }
 }
 
-const MCP_EXTENSION_ID = 'winccoa-tools-pack.vscode-winccoa-mcp-server';
+const MCP_EXTENSION_IDS = [
+    'richardjanisch.winccoa-mcp-server',
+    'winccoa-tools-pack.vscode-winccoa-mcp-server',
+];
 
 export async function promptMcpSetup(): Promise<void> {
-    const mcpExt = vscode.extensions.getExtension(MCP_EXTENSION_ID);
+    log.info(`[MCP Setup] Checking for MCP Server extension, candidates: [${MCP_EXTENSION_IDS.join(', ')}]`);
+
+    let mcpExt: vscode.Extension<unknown> | undefined;
+    for (const id of MCP_EXTENSION_IDS) {
+        const ext = vscode.extensions.getExtension(id);
+        if (ext) {
+            log.info(`[MCP Setup] Found extension: ${id} (active=${ext.isActive})`);
+            mcpExt = ext;
+            break;
+        }
+        log.info(`[MCP Setup] Extension ${id} not installed`);
+    }
+
     if (mcpExt) {
-        const run = 'Run Setup';
+        const connect = 'Connect';
+        const setup = 'Run Setup';
         const choice = await vscode.window.showWarningMessage(
             'MCP server not configured. Write operations are unavailable.',
-            run,
+            connect,
+            setup,
         );
-        if (choice === run) {
+        if (choice === connect) {
+            await vscode.commands.executeCommand('winccoa.mcp.connect');
+        } else if (choice === setup) {
             await vscode.commands.executeCommand('winccoa.mcp.runSetup');
         }
     } else {
+        log.info('[MCP Setup] No MCP Server extension found among known IDs');
+        // Debug: list all winccoa extensions
+        const allExts = vscode.extensions.all
+            .filter((e) => e.id.toLowerCase().includes('winccoa') || e.id.toLowerCase().includes('mcp'))
+            .map((e) => `  ${e.id} (active=${e.isActive})`);
+        log.info(`[MCP Setup] Related extensions installed:\n${allExts.length > 0 ? allExts.join('\n') : '  (none)'}`);
+
         const install = 'Install Extension';
         const choice = await vscode.window.showWarningMessage(
             'The WinCC OA MCP Server extension is required for write operations. Please install it first.',
@@ -428,7 +453,7 @@ export async function promptMcpSetup(): Promise<void> {
         if (choice === install) {
             await vscode.commands.executeCommand(
                 'workbench.extensions.search',
-                `@id:${MCP_EXTENSION_ID}`,
+                `@id:${MCP_EXTENSION_IDS[MCP_EXTENSION_IDS.length - 1]}`,
             );
         }
     }
