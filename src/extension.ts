@@ -151,6 +151,8 @@ export async function activate(context: vscode.ExtensionContext) {
             if (result.success) {
                 vscode.window.showInformationMessage(`Datapoint "${dpeName}" created.`);
                 dptTreeProvider.refresh();
+            } else if (result.error?.includes('not reachable')) {
+                promptMcpSetup();
             } else {
                 vscode.window.showErrorMessage(`Failed to create datapoint: ${result.error}`);
             }
@@ -206,6 +208,8 @@ export async function activate(context: vscode.ExtensionContext) {
             if (result.success) {
                 vscode.window.showInformationMessage(`Datapoint type "${typeName}" deleted.`);
                 dptTreeProvider.refresh();
+            } else if (result.error?.includes('not reachable')) {
+                promptMcpSetup();
             } else {
                 vscode.window.showErrorMessage(`Failed to delete datapoint type: ${result.error}`);
             }
@@ -242,14 +246,21 @@ export async function activate(context: vscode.ExtensionContext) {
                 }
 
                 const errors: string[] = [];
+                let unreachable = false;
                 for (const name of names) {
                     const result = await mcpClient.dpDelete(name);
                     if (!result.success) {
+                        if (result.error?.includes('not reachable')) {
+                            unreachable = true;
+                            break;
+                        }
                         errors.push(`${name}: ${result.error}`);
                     }
                 }
 
-                if (errors.length === 0) {
+                if (unreachable) {
+                    promptMcpSetup();
+                } else if (errors.length === 0) {
                     const msg =
                         names.length === 1
                             ? `Datapoint "${names[0]}" deleted.`

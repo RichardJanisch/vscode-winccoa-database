@@ -186,6 +186,8 @@ export class DptEditorPanel {
             vscode.window.showInformationMessage(
                 `Datapoint type "${this.currentTypeName}" updated.`,
             );
+        } else if (result.error?.includes('not reachable')) {
+            promptMcpSetup();
         } else {
             vscode.window.showErrorMessage(`Failed to update datapoint type: ${result.error}`);
         }
@@ -208,6 +210,8 @@ export class DptEditorPanel {
             this.panel.webview.postMessage({ command: 'switchToEditMode', typeName });
             vscode.window.showInformationMessage(`Datapoint type "${typeName}" created.`);
             vscode.commands.executeCommand('winccoa-database.refreshDptTree');
+        } else if (result.error?.includes('not reachable')) {
+            promptMcpSetup();
         } else {
             vscode.window.showErrorMessage(`Failed to create datapoint type: ${result.error}`);
         }

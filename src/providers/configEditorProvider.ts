@@ -151,6 +151,8 @@ export class ConfigEditorPanel {
             setTimeout(() => {
                 this.update(this.db, this.currentDpId, this.currentElId, this.currentLabel);
             }, 500);
+        } else if (result.error?.includes('not reachable')) {
+            promptMcpSetup();
         } else {
             vscode.window.showErrorMessage(`Failed to set value: ${result.error}`);
         }
