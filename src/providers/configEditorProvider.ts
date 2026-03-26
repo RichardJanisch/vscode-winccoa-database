@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import type { SqliteClient } from '../db/sqliteClient';
 import type { McpClient } from '../api/mcpClient';
+import { promptMcpSetup } from '../api/mcpClient';
 import type { DpeConfigs } from '../models/configs';
 import { OaElementType, getTypeName, isLeafType } from '../models/types';
 import {
@@ -81,8 +82,9 @@ export class ConfigEditorPanel {
         if (!this.mcpClient || !this.mcpClient.isConfigured) {
             this.panel.webview.postMessage({
                 command: 'historyError',
-                error: 'MCP server not configured. Ensure the WinCC OA MCP server is running.',
+                error: 'MCP server not configured. Write operations are unavailable.',
             });
+            promptMcpSetup();
             return;
         }
 
@@ -114,9 +116,7 @@ export class ConfigEditorPanel {
 
     private async setValueViaMcp(rawValue: string): Promise<void> {
         if (!this.mcpClient || !this.mcpClient.isConfigured) {
-            vscode.window.showWarningMessage(
-                'Cannot set values: MCP HTTP server not configured. Ensure the WinCC OA MCP server is running.',
-            );
+            promptMcpSetup();
             return;
         }
 
@@ -151,6 +151,8 @@ export class ConfigEditorPanel {
             setTimeout(() => {
                 this.update(this.db, this.currentDpId, this.currentElId, this.currentLabel);
             }, 500);
+        } else if (result.error?.includes('not reachable')) {
+            promptMcpSetup();
         } else {
             vscode.window.showErrorMessage(`Failed to set value: ${result.error}`);
         }

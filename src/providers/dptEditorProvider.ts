@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import type { SqliteClient } from '../db/sqliteClient';
 import type { McpClient } from '../api/mcpClient';
+import { promptMcpSetup } from '../api/mcpClient';
 import { OaElementType } from '../models/types';
 
 interface ChildEntry {
@@ -177,9 +178,7 @@ export class DptEditorPanel {
 
     private async saveDptChange(elements: string[][], types: number[][]): Promise<void> {
         if (!this.mcpClient?.isConfigured) {
-            vscode.window.showWarningMessage(
-                'MCP HTTP server not configured. Ensure the WinCC OA MCP server is running.',
-            );
+            promptMcpSetup();
             return;
         }
         const result = await this.mcpClient.dpTypeChange(this.currentTypeName, elements, types);
@@ -187,6 +186,8 @@ export class DptEditorPanel {
             vscode.window.showInformationMessage(
                 `Datapoint type "${this.currentTypeName}" updated.`,
             );
+        } else if (result.error?.includes('not reachable')) {
+            promptMcpSetup();
         } else {
             vscode.window.showErrorMessage(`Failed to update datapoint type: ${result.error}`);
         }
@@ -198,9 +199,7 @@ export class DptEditorPanel {
         types: number[][],
     ): Promise<void> {
         if (!this.mcpClient?.isConfigured) {
-            vscode.window.showWarningMessage(
-                'MCP HTTP server not configured. Ensure the WinCC OA MCP server is running.',
-            );
+            promptMcpSetup();
             return;
         }
         const result = await this.mcpClient.dpTypeCreate(typeName, elements, types);
@@ -211,6 +210,8 @@ export class DptEditorPanel {
             this.panel.webview.postMessage({ command: 'switchToEditMode', typeName });
             vscode.window.showInformationMessage(`Datapoint type "${typeName}" created.`);
             vscode.commands.executeCommand('winccoa-database.refreshDptTree');
+        } else if (result.error?.includes('not reachable')) {
+            promptMcpSetup();
         } else {
             vscode.window.showErrorMessage(`Failed to create datapoint type: ${result.error}`);
         }

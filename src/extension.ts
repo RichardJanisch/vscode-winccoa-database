@@ -6,7 +6,8 @@ import { DptTreeProvider } from './providers/dptTreeProvider';
 import { DatabaseTreeItem } from './providers/dptTreeProvider';
 import { ConfigEditorPanel } from './providers/configEditorProvider';
 import { DptEditorPanel } from './providers/dptEditorProvider';
-import { McpClient } from './api/mcpClient';
+import { McpClient, promptMcpSetup } from './api/mcpClient';
+import { McpServerExtensionApi } from './api/mcpServerExtensionApi';
 
 // ---------------------------------------------------------------------------
 
@@ -44,6 +45,33 @@ const PROJECT_ADMIN_IDS = [
     'RichardJanisch.winccoa-project-admin',
     'winccoa-tools-pack.winccoa-project-admin',
 ];
+
+const MCP_SERVER_IDS = [
+    'richardjanisch.winccoa-mcp-server',
+    'winccoa-tools-pack.vscode-winccoa-mcp-server',
+];
+
+async function getMcpServerApi(): Promise<McpServerExtensionApi | undefined> {
+    log.info(`[MCP Discovery] Searching for MCP Server extension, candidates: [${MCP_SERVER_IDS.join(', ')}]`);
+    for (const id of MCP_SERVER_IDS) {
+        const ext = vscode.extensions.getExtension<McpServerExtensionApi>(id);
+        if (ext) {
+            log.info(`[MCP Discovery] Found MCP Server extension: ${id} (active=${ext.isActive})`);
+            if (!ext.isActive) {
+                try {
+                    return await ext.activate();
+                } catch (err) {
+                    log.warn(`[MCP Discovery] Failed to activate MCP Server extension ${id}: ${err}`);
+                    return undefined;
+                }
+            }
+            return ext.exports;
+        }
+        log.info(`[MCP Discovery] Extension ${id} not installed`);
+    }
+    log.info('[MCP Discovery] No MCP Server extension found — will fall back to .env file');
+    return undefined;
+}
 
 export async function activate(context: vscode.ExtensionContext) {
     log.info('=== WinCC OA Database extension activating ===');
@@ -115,9 +143,7 @@ export async function activate(context: vscode.ExtensionContext) {
             if (!dpeName) return;
 
             if (!mcpClient.isConfigured) {
-                vscode.window.showErrorMessage(
-                    'MCP server not configured. Cannot create datapoint.',
-                );
+                promptMcpSetup();
                 return;
             }
 
@@ -125,6 +151,8 @@ export async function activate(context: vscode.ExtensionContext) {
             if (result.success) {
                 vscode.window.showInformationMessage(`Datapoint "${dpeName}" created.`);
                 dptTreeProvider.refresh();
+            } else if (result.error?.includes('not reachable')) {
+                promptMcpSetup();
             } else {
                 vscode.window.showErrorMessage(`Failed to create datapoint: ${result.error}`);
             }
@@ -172,9 +200,7 @@ export async function activate(context: vscode.ExtensionContext) {
             if (confirm !== confirmLabel) return;
 
             if (!mcpClient.isConfigured) {
-                vscode.window.showErrorMessage(
-                    'MCP server not configured. Cannot delete datapoint type.',
-                );
+                promptMcpSetup();
                 return;
             }
 
@@ -182,6 +208,8 @@ export async function activate(context: vscode.ExtensionContext) {
             if (result.success) {
                 vscode.window.showInformationMessage(`Datapoint type "${typeName}" deleted.`);
                 dptTreeProvider.refresh();
+            } else if (result.error?.includes('not reachable')) {
+                promptMcpSetup();
             } else {
                 vscode.window.showErrorMessage(`Failed to delete datapoint type: ${result.error}`);
             }
@@ -213,21 +241,26 @@ export async function activate(context: vscode.ExtensionContext) {
                 if (confirm !== 'Delete') return;
 
                 if (!mcpClient.isConfigured) {
-                    vscode.window.showErrorMessage(
-                        'MCP server not configured. Cannot delete datapoints.',
-                    );
+                    promptMcpSetup();
                     return;
                 }
 
                 const errors: string[] = [];
+                let unreachable = false;
                 for (const name of names) {
                     const result = await mcpClient.dpDelete(name);
                     if (!result.success) {
+                        if (result.error?.includes('not reachable')) {
+                            unreachable = true;
+                            break;
+                        }
                         errors.push(`${name}: ${result.error}`);
                     }
                 }
 
-                if (errors.length === 0) {
+                if (unreachable) {
+                    promptMcpSetup();
+                } else if (errors.length === 0) {
                     const msg =
                         names.length === 1
                             ? `Datapoint "${names[0]}" deleted.`
@@ -395,6 +428,29 @@ async function initProjectConnection(context: vscode.ExtensionContext): Promise<
     log.warn(
         '--- initProjectConnection: no project found (waiting for onDidChangeProject event) ---',
     );
+
+    // Subscribe to MCP Server extension connection changes (if available)
+    subscribeMcpServerEvents(context);
+}
+
+async function subscribeMcpServerEvents(context: vscode.ExtensionContext): Promise<void> {
+    const mcpServerApi = await getMcpServerApi();
+    if (!mcpServerApi) {
+        return;
+    }
+
+    const disposable = mcpServerApi.onDidChangeConnection((info) => {
+        log.info(`MCP Server connection changed: ${info ? info.url : 'disconnected'}`);
+        if (info) {
+            mcpClient.configureFromConnectionInfo(info.url, info.token);
+            mcpClient.checkHealth().then((healthy) => {
+                log.info(`MCP health after connection change: ${healthy}`);
+            });
+        }
+    });
+
+    context.subscriptions.push(disposable);
+    log.info('Subscribed to MCP Server extension connection events');
 }
 
 function disconnectProject(message?: string): void {
@@ -404,7 +460,7 @@ function disconnectProject(message?: string): void {
     dptTreeProvider.refresh();
 }
 
-function connectToProject(projectPath: string, version?: string): void {
+async function connectToProject(projectPath: string, version?: string): Promise<void> {
     log.info(`connectToProject("${projectPath}", version="${version || 'unknown'}")`);
 
     // Normalize path separators for the current platform (fixes Linux path issues)
@@ -489,8 +545,24 @@ function connectToProject(projectPath: string, version?: string): void {
         dbWatchedFiles = filesToWatch;
         log.info(`Polling for SQLite changes (2s interval): ${filesToWatch.join(', ')}`);
 
-        // Configure MCP client for value setting
-        const mcpConfigured = mcpClient.configure(projectPath);
+        // Configure MCP client — prefer MCP Server extension API, fall back to .env
+        const mcpServerApi = await getMcpServerApi();
+        let mcpConfigured = false;
+        if (mcpServerApi) {
+            const connInfo = mcpServerApi.getConnectionInfo();
+            if (connInfo) {
+                mcpConfigured = mcpClient.configureFromConnectionInfo(connInfo.url, connInfo.token);
+                log.info('MCP client configured from MCP Server extension API');
+            } else {
+                log.info('MCP Server extension active but not connected, falling back to .env');
+                mcpConfigured = mcpClient.configure(projectPath);
+            }
+        } else {
+            mcpConfigured = mcpClient.configure(projectPath);
+        }
+        if (!mcpConfigured) {
+            promptMcpSetup();
+        }
         if (mcpConfigured) {
             mcpClient.checkHealth().then((healthy) => {
                 if (healthy) {
