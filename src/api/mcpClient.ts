@@ -117,6 +117,17 @@ export class McpClient {
         return false;
     }
 
+    /** Configure from externally-provided connection info (e.g. from MCP Server extension) */
+    configureFromConnectionInfo(url: string, token: string): boolean {
+        // The MCP Server extension provides the full URL including /mcp path,
+        // but this client appends /mcp itself, so strip it if present.
+        const baseUrl = url.endsWith('/mcp') ? url.slice(0, -4) : url;
+        this.config = { url: baseUrl, token };
+        this.sessionId = null;
+        log.info(`[MCP] Configured from extension API: ${baseUrl} (token: ${token ? 'set' : 'missing'})`);
+        return true;
+    }
+
     get isConfigured(): boolean {
         return this.config !== null;
     }
