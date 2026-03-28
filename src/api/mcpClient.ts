@@ -124,7 +124,9 @@ export class McpClient {
         const baseUrl = url.endsWith('/mcp') ? url.slice(0, -4) : url;
         this.config = { url: baseUrl, token };
         this.sessionId = null;
-        log.info(`[MCP] Configured from extension API: ${baseUrl} (token: ${token ? 'set' : 'missing'})`);
+        log.info(
+            `[MCP] Configured from extension API: ${baseUrl} (token: ${token ? 'set' : 'missing'})`,
+        );
         return true;
     }
 
@@ -411,7 +413,9 @@ const MCP_EXTENSION_IDS = [
 ];
 
 export async function promptMcpSetup(): Promise<void> {
-    log.info(`[MCP Setup] Checking for MCP Server extension, candidates: [${MCP_EXTENSION_IDS.join(', ')}]`);
+    log.info(
+        `[MCP Setup] Checking for MCP Server extension, candidates: [${MCP_EXTENSION_IDS.join(', ')}]`,
+    );
 
     let mcpExt: vscode.Extension<unknown> | undefined;
     for (const id of MCP_EXTENSION_IDS) {
@@ -441,9 +445,13 @@ export async function promptMcpSetup(): Promise<void> {
         log.info('[MCP Setup] No MCP Server extension found among known IDs');
         // Debug: list all winccoa extensions
         const allExts = vscode.extensions.all
-            .filter((e) => e.id.toLowerCase().includes('winccoa') || e.id.toLowerCase().includes('mcp'))
+            .filter(
+                (e) => e.id.toLowerCase().includes('winccoa') || e.id.toLowerCase().includes('mcp'),
+            )
             .map((e) => `  ${e.id} (active=${e.isActive})`);
-        log.info(`[MCP Setup] Related extensions installed:\n${allExts.length > 0 ? allExts.join('\n') : '  (none)'}`);
+        log.info(
+            `[MCP Setup] Related extensions installed:\n${allExts.length > 0 ? allExts.join('\n') : '  (none)'}`,
+        );
 
         const install = 'Install Extension';
         const choice = await vscode.window.showWarningMessage(

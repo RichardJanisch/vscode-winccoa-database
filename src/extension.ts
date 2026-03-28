@@ -52,7 +52,9 @@ const MCP_SERVER_IDS = [
 ];
 
 async function getMcpServerApi(): Promise<McpServerExtensionApi | undefined> {
-    log.info(`[MCP Discovery] Searching for MCP Server extension, candidates: [${MCP_SERVER_IDS.join(', ')}]`);
+    log.info(
+        `[MCP Discovery] Searching for MCP Server extension, candidates: [${MCP_SERVER_IDS.join(', ')}]`,
+    );
     for (const id of MCP_SERVER_IDS) {
         const ext = vscode.extensions.getExtension<McpServerExtensionApi>(id);
         if (ext) {
@@ -61,7 +63,9 @@ async function getMcpServerApi(): Promise<McpServerExtensionApi | undefined> {
                 try {
                     return await ext.activate();
                 } catch (err) {
-                    log.warn(`[MCP Discovery] Failed to activate MCP Server extension ${id}: ${err}`);
+                    log.warn(
+                        `[MCP Discovery] Failed to activate MCP Server extension ${id}: ${err}`,
+                    );
                     return undefined;
                 }
             }
