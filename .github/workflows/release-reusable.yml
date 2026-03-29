@@ -86,7 +86,7 @@ jobs:
       - name: Install tools
         run: npm install -g @vscode/vsce
 
-      - name: Download tested VSIX from prerelease
+      - name: Download tested VSIX files from prerelease
         shell: bash
         run: |
           mkdir -p dist
@@ -95,29 +95,33 @@ jobs:
 
           gh release download --repo "$REPO" "$PRERELEASE_TAG" --pattern "*.vsix" --dir dist
 
-          VSIX_PATH=$(ls -1 dist/*.vsix 2>/dev/null | head -n 1)
-          if [ -z "$VSIX_PATH" ]; then
+          VSIX_COUNT=$(ls -1 dist/*.vsix 2>/dev/null | wc -l)
+          if [ "$VSIX_COUNT" -eq 0 ]; then
             echo "❌ ERROR: No .vsix found in prerelease assets for $PRERELEASE_TAG"
             ls -la dist || true
             exit 1
           fi
 
-          echo "📦 Downloaded VSIX: $VSIX_PATH"
+          echo "📦 Downloaded $VSIX_COUNT VSIX file(s):"
+          ls -1 dist/*.vsix
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to VS Code Marketplace (if configured)
         shell: bash
         run: |
-          VSIX_PATH=$(ls -1 dist/*.vsix 2>/dev/null | head -n 1)
-          if [ -z "$VSIX_PATH" ]; then
+          VSIX_FILES=$(ls -1 dist/*.vsix 2>/dev/null)
+          if [ -z "$VSIX_FILES" ]; then
             echo "❌ ERROR: No .vsix found in dist/"
             exit 1
           fi
 
           if [ -n "${{ secrets.VSCE_PAT }}" ]; then
-            echo "🏪 Publishing tested VSIX to VS Code Marketplace..."
-            vsce publish --packagePath "$VSIX_PATH" -p "${{ secrets.VSCE_PAT }}"
+            echo "🏪 Publishing tested VSIX files to VS Code Marketplace..."
+            for VSIX_PATH in $VSIX_FILES; do
+              echo "  Publishing: $VSIX_PATH"
+              vsce publish --packagePath "$VSIX_PATH" -p "${{ secrets.VSCE_PAT }}"
+            done
             echo "✅ Published to marketplace successfully!"
           else
             echo "⚠️ VSCE_PAT secret not found - skipping marketplace publish"
@@ -132,8 +136,9 @@ jobs:
           body: |
             ${{ needs.versioning.outputs.changelog }}
 
-            ### ✅ Tested Artifact
-            - Published from tested pre-release asset: `${{ needs.precheck.outputs.prerelease_tag }}`
+            ### ✅ Tested Artifacts
+            - Published from tested pre-release: `${{ needs.precheck.outputs.prerelease_tag }}`
+            - Platform-specific packages: **linux-x64**, **win32-x64**
           files: "dist/*.vsix"
           draft: false
           prerelease: false

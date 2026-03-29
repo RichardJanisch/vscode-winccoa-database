@@ -20,8 +20,14 @@ src/**
 tsconfig.json
 tsconfig.tsbuildinfo
 
-# Node modules (safe because we bundle)
+# Node modules (exclude all except production dependencies)
 node_modules/**
+!node_modules/better-sqlite3/**
+!node_modules/bindings/**
+!node_modules/file-uri-to-path/**
+
+# Prebuilt native binaries (multiple ABI support)
+!prebuilds/**
 
 # Exceptions for assets
 !resources/**

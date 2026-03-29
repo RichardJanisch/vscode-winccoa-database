@@ -6,14 +6,14 @@ This document explains how WinCC OA stores its data across SQLite and PostgreSQL
 
 WinCC OA uses two database systems for different purposes:
 
-| Database | Purpose | Access Mode | Location |
-|----------|---------|-------------|----------|
-| **SQLite** (4 files) | DP structure, configs, current values, active alerts | Read-only cache | `{projectDir}/db/wincc_oa/sqlite/` |
-| **PostgreSQL NGA** | Historical archived events and alerts | Read-only archive | `127.0.0.1:15432/winccoa` |
+| Database             | Purpose                                              | Access Mode       | Location                           |
+| -------------------- | ---------------------------------------------------- | ----------------- | ---------------------------------- |
+| **SQLite** (4 files) | DP structure, configs, current values, active alerts | Read-only cache   | `{projectDir}/db/wincc_oa/sqlite/` |
+| **PostgreSQL NGA**   | Historical archived events and alerts                | Read-only archive | `127.0.0.1:15432/winccoa`          |
 
 **Key insight**: Both databases are **write-only caches** maintained by WinCC OA managers. External applications cannot write to them to change runtime state. All value changes must go through the **WinCC OA Event Manager**.
 
-```
+```text
                     ┌─────────────────┐
                     │  Event Manager  │  (WCCILevent)
                     └────────┬────────┘
@@ -53,7 +53,8 @@ CREATE TABLE datapoint_type(
 ```
 
 Example data:
-```
+
+```text
 dpt_id │ canonical_name
 ───────┼───────────────
    156 │ ExampleDP_Float
@@ -86,27 +87,27 @@ CREATE TABLE datapoint_element(
 
 **Element type codes:**
 
-| Code | Type | Description |
-|------|------|-------------|
-| 1 | STRUCT | Container for child elements |
-| 19 | CHAR | Character |
-| 20 | UINT | Unsigned integer |
-| 21 | INT | Signed integer |
-| 22 | FLOAT | Floating point |
-| 23 | BOOL | Boolean (0/1) |
-| 24 | BIT32 | 32-bit pattern |
-| 25 | STRING | Text string |
-| 26 | TIME | Timestamp |
-| 27 | DPID | Datapoint identifier |
-| 28 | BLOB | Binary data |
-| 29 | LONG | 64-bit integer |
-| 30 | ULONG | Unsigned 64-bit integer |
-| 31 | BIT64 | 64-bit pattern |
-| 41 | REFERENCE | Reference to another DPT |
+| Code | Type      | Description                  |
+| ---- | --------- | ---------------------------- |
+| 1    | STRUCT    | Container for child elements |
+| 19   | CHAR      | Character                    |
+| 20   | UINT      | Unsigned integer             |
+| 21   | INT       | Signed integer               |
+| 22   | FLOAT     | Floating point               |
+| 23   | BOOL      | Boolean (0/1)                |
+| 24   | BIT32     | 32-bit pattern               |
+| 25   | STRING    | Text string                  |
+| 26   | TIME      | Timestamp                    |
+| 27   | DPID      | Datapoint identifier         |
+| 28   | BLOB      | Binary data                  |
+| 29   | LONG      | 64-bit integer               |
+| 30   | ULONG     | Unsigned 64-bit integer      |
+| 31   | BIT64     | 64-bit pattern               |
+| 41   | REFERENCE | Reference to another DPT     |
 
-**Example: ExampleDP_DDE (flat structure)**
+#### Example: ExampleDP_DDE (flat structure)
 
-```
+```text
 el_id │ parent │ type   │ name
 ──────┼────────┼────────┼─────────────
     1 │      0 │ STRUCT │ ExampleDP_DDE   (root)
@@ -116,9 +117,9 @@ el_id │ parent │ type   │ name
     5 │      1 │ STRING │ string1
 ```
 
-**Example: PUMP1 (nested structs with reference)**
+#### Example: PUMP1 (nested structs with reference)
 
-```
+```text
 el_id │ parent │ type      │ name
 ──────┼────────┼───────────┼──────────────
     1 │      0 │ STRUCT    │ PUMP1           (root)
@@ -309,17 +310,17 @@ CREATE TABLE smooth(
 
 #### Other config tables
 
-| Table | Rows | Description |
-|-------|------|-------------|
-| **distrib** | 125 | Driver distribution (driver_number) |
-| **dp_function** | 98 | DP functions with formulas |
-| **auth** | 126 | Authorization owner |
-| **auth_detail** | 2520 | Read/write permission bits |
-| **alert_class** | 24 | Alert class definitions (colors, priorities) |
-| **default** | 14 | Default values for elements |
-| **general** | 0 | General-purpose config storage |
-| **cmd_conv / msg_conv** | — | Command/message conversion configs |
-| **user_range** | — | User-defined ranges |
+| Table                   | Rows | Description                                  |
+| ----------------------- | ---- | -------------------------------------------- |
+| **distrib**             | 125  | Driver distribution (driver_number)          |
+| **dp_function**         | 98   | DP functions with formulas                   |
+| **auth**                | 126  | Authorization owner                          |
+| **auth_detail**         | 2520 | Read/write permission bits                   |
+| **alert_class**         | 24   | Alert class definitions (colors, priorities) |
+| **default**             | 14   | Default values for elements                  |
+| **general**             | 0    | General-purpose config storage               |
+| **cmd_conv / msg_conv** | —    | Command/message conversion configs           |
+| **user_range**          | —    | User-defined ranges                          |
 
 ---
 
@@ -354,7 +355,7 @@ CREATE TABLE last_value(
 
 Example data for `ExampleDP_DDE` (dp_id=417):
 
-```
+```text
 el_id │ value                 │ variable_type │ original_time (ns)
 ──────┼───────────────────────┼───────────────┼─────────────────────
     2 │ 10.0                  │ 458752        │ 1771106887279000000
@@ -433,7 +434,7 @@ dbVersion                               │ 3.0
 
 Defines archive group policies (retention, segmentation, backup).
 
-```
+```text
 group_name       │ retention │ segment_duration │ alert
 ─────────────────┼───────────┼──────────────────┼──────
 System1:EVENT    │ 31 days   │ 1 day            │ false
@@ -531,12 +532,12 @@ CREATE TABLE _alert_3_a(
 
 ### Table Naming Convention
 
-| Pattern | Description |
-|---------|-------------|
-| `_event_{N}_a` | Analog event archive (value changes) |
-| `_event_{N}_d` | Discrete event archive |
-| `_alert_{N}_a` | Alert archive (state transitions) |
-| `_alert_{N}_add` | Alert additional values |
+| Pattern          | Description                          |
+| ---------------- | ------------------------------------ |
+| `_event_{N}_a`   | Analog event archive (value changes) |
+| `_event_{N}_d`   | Discrete event archive               |
+| `_alert_{N}_a`   | Alert archive (state transitions)    |
+| `_alert_{N}_add` | Alert additional values              |
 
 The number `N` corresponds to internal segment group identifiers, not user-facing group names.
 
@@ -546,7 +547,7 @@ The number `N` corresponds to internal segment group identifiers, not user-facin
 
 ### Reading Current Values (Extension → SQLite)
 
-```
+```text
 Extension                SQLite
    │                        │
    ├── getAllDpTypes() ─────→ ident.sqlite: datapoint_type
@@ -560,7 +561,7 @@ Extension                SQLite
 
 ### Writing Values (Extension → MCP → Event Manager → SQLite)
 
-```
+```text
 Extension           MCP HTTP Server      Event Manager     SQLite
    │                     │                    │               │
    ├─ POST /mcp ────────→│                    │               │
@@ -576,7 +577,7 @@ Extension           MCP HTTP Server      Event Manager     SQLite
 
 ### Historical Archiving (Event Manager → PostgreSQL)
 
-```
+```text
 Event Manager        NGA Archiver        PostgreSQL
    │                     │                    │
    ├─ value change ─────→│                    │

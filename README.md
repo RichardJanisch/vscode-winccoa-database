@@ -26,16 +26,16 @@ View all configurations for a datapoint element:
 
 Automatically connects to WinCC OA projects via:
 
-1. Extension settings (`winccoa-para.projectPath`)
-2. `winccoa-project-admin` extension API 
+1. Extension settings (`winccoa-database.projectPath`)
+2. `winccoa-project-admin` extension API
 3. Workspace folder detection
 
 ## Architecture
 
-```
+```text
 VS Code Extension
   |
-  |-- SQLite (read-only) -------> ident.sqlite    (DPTs, elements, DPs)
+  |-- sql.js (read-only) -------> ident.sqlite    (DPTs, elements, DPs)
   |                                config.sqlite   (address, alert, archive, ...)
   |                                last_value.sqlite (current values)
   |
@@ -43,7 +43,7 @@ VS Code Extension
                                   (localhost:3001)
 ```
 
-- **Reading**: All data is read from SQLite databases at `{projectDir}/db/wincc_oa/sqlite/`
+- **Reading**: All data is read from SQLite databases at `{projectDir}/db/wincc_oa/sqlite/` using sql.js (WebAssembly-based SQLite, cross-platform)
 - **Writing**: Values are set through the WinCC OA MCP HTTP server, which routes them through the event manager
 
 > **Note**: Direct SQLite writes do not propagate to the WinCC OA runtime. Use the MCP server for value changes.
@@ -71,6 +71,8 @@ VS Code Extension
 code --install-extension vscode-winccoa-database-X.Y.Z.vsix
 ```
 
+The extension works cross-platform on Windows, Linux, and macOS without requiring additional setup.
+
 ## Development
 
 ### Setup
@@ -78,9 +80,6 @@ code --install-extension vscode-winccoa-database-X.Y.Z.vsix
 ```bash
 # Install dependencies
 npm install
-
-# Rebuild native modules for VS Code's Electron
-npm run rebuild
 
 # Compile
 npm run compile
@@ -94,7 +93,6 @@ Press **F5** in VS Code to launch the Extension Development Host.
 
 - **Build**: `npm run compile`
 - **Watch**: `npm run watch` (auto-recompile on changes)
-- **Rebuild native**: `npm run rebuild`
 - **Package**: `npm run package`
 - **Lint**: `npm run lint`
 - **Format check**: `npm run format:check`
@@ -153,4 +151,6 @@ WinCC OA and Siemens are trademarks of Siemens AG. This is a community project a
 
 ---
 
+<!-- markdownlint-disable MD033 -->
 <div align="center">Made with ❤️ for and by the WinCC OA community</div>
+<!-- markdownlint-enable MD033 -->

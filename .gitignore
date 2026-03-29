@@ -1,3 +1,8 @@
+.claude
+.claude-flow/
+.swarm/
+.mcp.json
+*.vsix
 
 # Dependencies
 node_modules/
@@ -8,6 +13,7 @@ dist-esm/
 out/
 bin/
 !bin/*.vsix
+prebuilds/
 
 # IDE
 #.vscode/
@@ -30,6 +36,9 @@ yarn-error.log*
 # Exception: Test fixtures
 !src/test/fixtures/*.log
 
+# Generated SQLite test fixture databases (run `npm run test:fixtures` to regenerate)
+src/test/fixtures/projects/*/db/
+
 # Testing
 coverage/
 .vscode-test/
@@ -45,3 +54,6 @@ DevEnv.code-workspace
 # Optional extras
 *.tgz
 .env
+
+# Local development scripts (not part of extension)
+db-explorer/
