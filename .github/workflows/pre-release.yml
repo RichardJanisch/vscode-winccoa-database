@@ -39,11 +39,10 @@ jobs:
   pre-release:
     needs: [wait-required-workflows]
     if: ${{ always() && (github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && needs.wait-required-workflows.result == 'success')) }}
-    uses: winccoa-tools-pack/.github/.github/workflows/reusable-prerelease.yml@main
+    uses: ./.github/workflows/prerelease-reusable.yml
     with:
       target_branch: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
       validate_release_branch: ${{ github.event_name == 'pull_request' && startsWith(github.head_ref, 'release/v') }}
-      project_type: vscode
     secrets: inherit
 
   cleanup-old-prereleases:
