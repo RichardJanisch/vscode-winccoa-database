@@ -1,7 +1,14 @@
 # WinCC OA Database Explorer
 
-[![CI/CD](https://github.com/winccoa-tools-pack/vscode-winccoa-database/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/winccoa-tools-pack/vscode-winccoa-database/actions/workflows/ci-cd.yml)
-[![Visual Studio Marketplace](https://img.shields.io/visual-studio-marketplace/v/winccoa-tools-pack.vscode-winccoa-database)](https://marketplace.visualstudio.com/items?itemName=winccoa-tools-pack.vscode-winccoa-database)
+<div align="center">
+
+![Version](https://img.shields.io/github/v/release/winccoa-tools-pack/vscode-winccoa-database?label=version)
+![License](https://img.shields.io/github/license/winccoa-tools-pack/vscode-winccoa-database)
+[![Coverage](https://codecov.io/gh/winccoa-tools-pack/vscode-winccoa-database/graph/badge.svg)](https://codecov.io/gh/winccoa-tools-pack/vscode-winccoa-database)
+[![Quality gate](https://github.com/winccoa-tools-pack/vscode-winccoa-database/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/winccoa-tools-pack/vscode-winccoa-database/actions/workflows/ci-cd.yml)
+[![Released](https://github.com/winccoa-tools-pack/vscode-winccoa-database/actions/workflows/release.yml/badge.svg)](https://github.com/winccoa-tools-pack/vscode-winccoa-database/actions/workflows/release.yml)
+
+</div>
 
 A VS Code extension that recreates the WinCC OA PARA module, providing a graphical interface for browsing and editing datapoint types (DPTs), datapoints (DPs), and their configurations directly from VS Code.
 

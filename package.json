@@ -6,6 +6,7 @@
     "publisher": "winccoa-tools-pack",
     "author": "winccoa-tools-pack",
     "license": "MIT",
+    "icon": "resources/icons/marketplace-icon.png",
     "categories": [
         "Other"
     ],
@@ -30,7 +31,7 @@
     },
     "homepage": "https://github.com/winccoa-tools-pack/vscode-winccoa-database#readme",
     "engines": {
-        "vscode": "^1.106.0"
+        "vscode": "^1.110.0"
     },
     "main": "./dist/extension.js",
     "activationEvents": [
@@ -178,12 +179,12 @@
         "@types/better-sqlite3": "^7.6.12",
         "@types/mocha": "^10.0.10",
         "@types/node": "^20.11.0",
-        "@types/vscode": "^1.106.0",
+        "@types/vscode": "^1.110.0",
         "@vscode/test-cli": "^0.0.12",
         "@vscode/test-electron": "^2.5.2",
         "@vscode/vsce": "^3.7.1",
         "copyfiles": "^2.4.1",
-        "eslint": "^9.39.2",
+        "eslint": "^10.1.0",
         "glob": "^13.0.0",
         "markdownlint-cli": "^0.48.0",
         "mocha": "^11.7.5",
@@ -192,8 +193,8 @@
         "ts-loader": "^9.5.1",
         "tsx": "^4.21.0",
         "typescript": "^5.3.0",
-        "typescript-eslint": "^8.54.0",
-        "webpack": "^5.97.1",
+        "typescript-eslint": "^8.57.2",
+        "webpack": "^5.105.4",
         "webpack-cli": "^5.1.4"
     },
     "scripts": {
@@ -223,6 +224,12 @@
         "test": "vscode-test",
         "test:unit": "vscode-test --label unitTests",
         "test:integration": "vscode-test --label integrationTests",
+        "test:unit:coverage": "npm run compile:tests && npm run clean:coverage:unitTests && vscode-test --label unitTests --coverage --coverage-output coverage/unitTests --coverage-reporter lcov --coverage-reporter html --coverage-reporter json-summary --coverage-reporter text-summary",
+        "test:integration:coverage": "npm run compile:tests && npm run clean:coverage:integrationTests && vscode-test --label integrationTests --coverage --coverage-output coverage/integrationTests --coverage-reporter lcov --coverage-reporter html --coverage-reporter json-summary --coverage-reporter text-summary",
+        "test:coverage": "npm run test:unit:coverage && npm run test:integration:coverage",
+        "clean:coverage": "node -e \"require('fs').rmSync('coverage',{ recursive:true, force:true, maxRetries:10, retryDelay:200 })\"",
+        "clean:coverage:integrationTests": "node -e \"require('fs').rmSync('coverage/integrationTests',{ recursive:true, force:true, maxRetries:10, retryDelay:200 })\"",
+        "clean:coverage:unitTests": "node -e \"require('fs').rmSync('coverage/unitTests',{ recursive:true, force:true, maxRetries:10, retryDelay:200 })\"",
         "ci:integration": "npm ci && npm run compile && npm run test:integration",
         "style-check": "npm run format:check && npm run lint"
     },
