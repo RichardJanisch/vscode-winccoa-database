@@ -3,5 +3,5 @@
     "MD007": { "indent": 4 },
     "MD013": { "line_length": 300, "code_blocks": false },
     "MD024": false,
-    "MD033": { "allowed_elements": ["center"] }
+    "MD033": { "allowed_elements": ["center", "div"] }
 }
