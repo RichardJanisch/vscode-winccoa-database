@@ -77,7 +77,9 @@ export class DatabaseTreeItem extends vscode.TreeItem {
 }
 
 export class DptTreeProvider
-    implements vscode.TreeDataProvider<DatabaseTreeItem>, vscode.TreeDragAndDropController<DatabaseTreeItem>
+    implements
+        vscode.TreeDataProvider<DatabaseTreeItem>,
+        vscode.TreeDragAndDropController<DatabaseTreeItem>
 {
     dropMimeTypes = [];
     dragMimeTypes = ['text/plain'];
