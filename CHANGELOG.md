@@ -21,18 +21,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.1] - 2026-03-30
 
-### Changed
+### Added
 
-- **BREAKING**: Migrated from better-sqlite3 (native C++ module) to sql.js (WebAssembly)
-    - Extension now works cross-platform (Windows, Linux, macOS) without rebuilding native modules
-    - Single VSIX package works on all operating systems
-    - Simplified installation - no platform-specific builds required
-    - Removed `npm run rebuild` requirement from development workflow
+- Multi-platform VSIX build support (linux-x64 and win32-x64)
+- Marketplace icon for better visibility in VS Code extensions marketplace
 
-### Removed
+### Fixed
 
-- Removed platform-specific native module dependencies (better-sqlite3, electron-rebuild)
-- Removed rebuild instructions from README documentation
+- Security vulnerabilities in npm dependencies
+- CI workflow improvements and branch protection rules
 
 ## [0.1.0] - 2026-02-15
 
