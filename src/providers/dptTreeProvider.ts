@@ -57,14 +57,13 @@ export class DatabaseTreeItem extends vscode.TreeItem {
      * - For dpElement: returns the full element path (e.g., "System1:ExampleDP.Value")
      */
     getFullDpName(): string | undefined {
-        if (!this.db) return undefined;
-
         switch (this.itemType) {
             case 'dpt':
                 return this.label;
             case 'dp':
                 return this.label;
             case 'dpElement': {
+                if (!this.db) return undefined;
                 const dpName = this.db.getDatapointName(this.dpId);
                 if (!dpName) return undefined;
                 const elementPath = this.db.getElementPath(this.dpId, this.elId);
